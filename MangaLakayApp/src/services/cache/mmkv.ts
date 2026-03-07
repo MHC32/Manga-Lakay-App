@@ -1,16 +1,13 @@
 // src/services/cache/mmkv.ts
-import {MMKV} from 'react-native-mmkv';
+import {createMMKV} from 'react-native-mmkv';
 
-// Instance singleton MMKV
-export const storage = new MMKV({
-  id: 'mangalakay-cache',
-});
+// Instance singleton MMKV (API v4 NitroModules)
+export const storage = createMMKV({id: 'mangalakay-cache'});
 
-// Helpers bas niveau
 export const mmkv = {
   getString: (key: string): string | undefined => storage.getString(key),
   setString: (key: string, value: string): void => storage.set(key, value),
-  delete: (key: string): void => storage.delete(key),
+  delete: (key: string): void => { storage.remove(key); },
   getAllKeys: (): string[] => storage.getAllKeys(),
   contains: (key: string): boolean => storage.contains(key),
   clearAll: (): void => storage.clearAll(),
