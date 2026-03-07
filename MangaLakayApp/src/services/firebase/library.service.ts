@@ -1,51 +1,44 @@
 // src/services/firebase/library.service.ts
-import firestore from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  Timestamp,
+  arrayUnion,
+  arrayRemove,
+} from '@react-native-firebase/firestore';
 import {LibraryEntry} from '../../types/firebase.types';
 import {LibraryStatus} from '../../types/mangadex.types';
+
+const db = getFirestore();
 
 type Unsubscribe = () => void;
 
 export const libraryService = {
-  /**
-   * Récupère toute la bibliothèque d'un utilisateur.
-   */
   async getLibrary(uid: string): Promise<LibraryEntry[]> {
-    const snapshot = await firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('library')
-      .orderBy('updatedAt', 'desc')
-      .get();
-
-    return snapshot.docs.map(doc => doc.data() as LibraryEntry);
+    const q = query(
+      collection(db, 'users', uid, 'library'),
+      orderBy('updatedAt', 'desc'),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => d.data() as LibraryEntry);
   },
 
-  /**
-   * Récupère une entrée spécifique de la bibliothèque.
-   */
-  async getLibraryEntry(
-    uid: string,
-    mangaId: string,
-  ): Promise<LibraryEntry | null> {
-    const doc = await firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('library')
-      .doc(mangaId)
-      .get();
-
-    return doc.exists ? (doc.data() as LibraryEntry) : null;
+  async getLibraryEntry(uid: string, mangaId: string): Promise<LibraryEntry | null> {
+    const snap = await getDoc(doc(db, 'users', uid, 'library', mangaId));
+    return snap.exists() ? (snap.data() as LibraryEntry) : null;
   },
 
-  /**
-   * Ajoute un manga à la bibliothèque.
-   */
-  async addToLibrary(
-    uid: string,
-    mangaId: string,
-    status: LibraryStatus,
-  ): Promise<void> {
-    const now = firestore.Timestamp.now();
+  async addToLibrary(uid: string, mangaId: string, status: LibraryStatus): Promise<void> {
+    const now = Timestamp.now();
     const entry: LibraryEntry = {
       mangaId,
       status,
@@ -56,101 +49,44 @@ export const libraryService = {
       addedAt: now,
       updatedAt: now,
     };
-
-    await firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('library')
-      .doc(mangaId)
-      .set(entry);
+    await setDoc(doc(db, 'users', uid, 'library', mangaId), entry);
   },
 
-  /**
-   * Met à jour le statut d'un manga dans la bibliothèque.
-   * BR-013: changer de statut ne supprime pas la progression ni la note.
-   */
-  async updateStatus(
-    uid: string,
-    mangaId: string,
-    status: LibraryStatus,
-  ): Promise<void> {
-    await firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('library')
-      .doc(mangaId)
-      .update({status, updatedAt: firestore.Timestamp.now()});
+  async updateStatus(uid: string, mangaId: string, status: LibraryStatus): Promise<void> {
+    await updateDoc(doc(db, 'users', uid, 'library', mangaId), {
+      status,
+      updatedAt: Timestamp.now(),
+    });
   },
 
-  /**
-   * Retire un manga de la bibliothèque.
-   * BR-007: la note est supprimée si le manga est retiré.
-   */
   async removeFromLibrary(uid: string, mangaId: string): Promise<void> {
-    await firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('library')
-      .doc(mangaId)
-      .delete();
+    await deleteDoc(doc(db, 'users', uid, 'library', mangaId));
   },
 
-  /**
-   * Marque un chapitre comme lu.
-   * BR-014: progression stockée localement ET synchronisée Firebase.
-   */
-  async markChapterRead(
-    uid: string,
-    mangaId: string,
-    chapterId: string,
-  ): Promise<void> {
-    await firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('library')
-      .doc(mangaId)
-      .update({
-        chaptersRead: firestore.FieldValue.arrayUnion(chapterId),
-        lastChapterRead: chapterId,
-        lastReadAt: firestore.Timestamp.now(),
-        updatedAt: firestore.Timestamp.now(),
-      });
+  async markChapterRead(uid: string, mangaId: string, chapterId: string): Promise<void> {
+    await updateDoc(doc(db, 'users', uid, 'library', mangaId), {
+      chaptersRead: arrayUnion(chapterId),
+      lastChapterRead: chapterId,
+      lastReadAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
   },
 
-  /**
-   * Démarque un chapitre comme lu.
-   */
-  async unmarkChapterRead(
-    uid: string,
-    mangaId: string,
-    chapterId: string,
-  ): Promise<void> {
-    await firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('library')
-      .doc(mangaId)
-      .update({
-        chaptersRead: firestore.FieldValue.arrayRemove(chapterId),
-        updatedAt: firestore.Timestamp.now(),
-      });
+  async unmarkChapterRead(uid: string, mangaId: string, chapterId: string): Promise<void> {
+    await updateDoc(doc(db, 'users', uid, 'library', mangaId), {
+      chaptersRead: arrayRemove(chapterId),
+      updatedAt: Timestamp.now(),
+    });
   },
 
-  /**
-   * Stream temps réel de la bibliothèque (synchronisation cross-device).
-   */
-  subscribeToLibrary(
-    uid: string,
-    callback: (entries: LibraryEntry[]) => void,
-  ): Unsubscribe {
-    return firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('library')
-      .orderBy('updatedAt', 'desc')
-      .onSnapshot(snapshot => {
-        const entries = snapshot.docs.map(doc => doc.data() as LibraryEntry);
-        callback(entries);
-      });
+  subscribeToLibrary(uid: string, callback: (entries: LibraryEntry[]) => void): Unsubscribe {
+    const q = query(
+      collection(db, 'users', uid, 'library'),
+      orderBy('updatedAt', 'desc'),
+    );
+    return onSnapshot(q, snapshot => {
+      const entries = snapshot.docs.map(d => d.data() as LibraryEntry);
+      callback(entries);
+    });
   },
 };

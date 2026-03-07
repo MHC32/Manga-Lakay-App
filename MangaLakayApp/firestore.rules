@@ -4,9 +4,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Profils — lecture publique si isPublic, écriture propriétaire seulement
+    // List autorisé sans auth pour vérifier la disponibilité du username (BR-005)
     match /users/{userId} {
-      allow read: if resource.data.isPublic == true
-                  || request.auth.uid == userId;
+      allow list: if true;
+      allow get: if resource.data.isPublic == true
+                 || request.auth.uid == userId;
       allow create: if request.auth.uid == userId
                     && validUserData(request.resource.data);
       allow update: if request.auth.uid == userId

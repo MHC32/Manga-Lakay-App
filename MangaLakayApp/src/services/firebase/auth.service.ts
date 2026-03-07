@@ -1,5 +1,15 @@
 // src/services/firebase/auth.service.ts
-import auth from '@react-native-firebase/auth';
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithCredential,
+} from '@react-native-firebase/auth';
 import {GoogleSignin} from '@react-native-google-signin/google-signin';
 
 // Configurer Google Sign-In avec le Web Client ID Firebase
@@ -8,40 +18,27 @@ GoogleSignin.configure({
 });
 
 export const authService = {
-  /**
-   * Inscription avec email/password.
-   */
   async signUpWithEmail(email: string, password: string) {
-    return auth().createUserWithEmailAndPassword(email, password);
+    return createUserWithEmailAndPassword(getAuth(), email, password);
   },
 
-  /**
-   * Connexion avec email/password.
-   */
   async signInWithEmail(email: string, password: string) {
-    return auth().signInWithEmailAndPassword(email, password);
+    return signInWithEmailAndPassword(getAuth(), email, password);
   },
 
-  /**
-   * Connexion avec Google OAuth.
-   */
   async signInWithGoogle() {
     await GoogleSignin.hasPlayServices();
     const signInResult = await GoogleSignin.signIn();
-    // Vérifier si idToken est disponible selon la version du SDK
     const idToken = signInResult.data?.idToken ?? (signInResult as {idToken?: string}).idToken;
     if (!idToken) {
       throw new Error('Google Sign-In: idToken manquant');
     }
-    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-    return auth().signInWithCredential(googleCredential);
+    const googleCredential = GoogleAuthProvider.credential(idToken);
+    return signInWithCredential(getAuth(), googleCredential);
   },
 
-  /**
-   * Déconnexion.
-   */
   async signOut() {
-    await auth().signOut();
+    await firebaseSignOut(getAuth());
     try {
       await GoogleSignin.signOut();
     } catch {
@@ -49,34 +46,22 @@ export const authService = {
     }
   },
 
-  /**
-   * Obtenir l'utilisateur actuellement connecté.
-   */
   getCurrentUser() {
-    return auth().currentUser;
+    return getAuth().currentUser;
   },
 
-  /**
-   * Écouter les changements d'état d'authentification.
-   */
   onAuthStateChanged(callback: (user: any) => void) {
-    return auth().onAuthStateChanged(callback);
+    return onAuthStateChanged(getAuth(), callback);
   },
 
-  /**
-   * Envoyer un email de vérification.
-   */
   async sendEmailVerification() {
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     if (user) {
-      await user.sendEmailVerification();
+      await sendEmailVerification(user);
     }
   },
 
-  /**
-   * Réinitialisation du mot de passe.
-   */
   async sendPasswordReset(email: string) {
-    await auth().sendPasswordResetEmail(email);
+    await sendPasswordResetEmail(getAuth(), email);
   },
 };

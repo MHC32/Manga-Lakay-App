@@ -1,19 +1,26 @@
 // src/services/firebase/user.service.ts
-import firestore from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  getDocs,
+  query,
+  where,
+  limit,
+  Timestamp,
+} from '@react-native-firebase/firestore';
 import {UserProfile} from '../../types/firebase.types';
 import {sanitizeBio} from '../../utils/sanitize';
 
+const db = getFirestore();
+
 export const userService = {
-  /**
-   * Crée un profil utilisateur dans Firestore lors de l'inscription.
-   */
-  async createProfile(
-    uid: string,
-    email: string,
-    username: string,
-  ): Promise<void> {
-    const now = firestore.Timestamp.now();
-    const profile: Omit<UserProfile, 'updatedAt'> & {updatedAt: typeof now} = {
+  async createProfile(uid: string, email: string, username: string): Promise<void> {
+    const now = Timestamp.now();
+    await setDoc(doc(db, 'users', uid), {
       uid,
       email,
       username: username.toLowerCase(),
@@ -29,56 +36,41 @@ export const userService = {
       createdAt: now,
       updatedAt: now,
       lastActiveAt: now,
-    };
-
-    await firestore().collection('users').doc(uid).set(profile);
+    });
   },
 
-  /**
-   * Récupère un profil utilisateur par UID.
-   */
   async getProfile(uid: string): Promise<UserProfile | null> {
-    const doc = await firestore().collection('users').doc(uid).get();
-    if (!doc.exists) {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (!snap.exists()) {
       return null;
     }
-    return {uid: doc.id, ...doc.data()} as UserProfile;
+    return {uid: snap.id, ...snap.data()} as UserProfile;
   },
 
-  /**
-   * Récupère un profil par username (pour les profils publics).
-   */
   async getProfileByUsername(username: string): Promise<UserProfile | null> {
-    const snapshot = await firestore()
-      .collection('users')
-      .where('username', '==', username.toLowerCase())
-      .limit(1)
-      .get();
-
+    const q = query(
+      collection(db, 'users'),
+      where('username', '==', username.toLowerCase()),
+      limit(1),
+    );
+    const snapshot = await getDocs(q);
     if (snapshot.empty) {
       return null;
     }
-
-    const doc = snapshot.docs[0];
-    return {uid: doc.id, ...doc.data()} as UserProfile;
+    const snap = snapshot.docs[0];
+    return {uid: snap.id, ...snap.data()} as UserProfile;
   },
 
-  /**
-   * Vérifie qu'un username est disponible (BR-005: unicité insensible à la casse).
-   */
   async isUsernameAvailable(username: string): Promise<boolean> {
-    const snapshot = await firestore()
-      .collection('users')
-      .where('username', '==', username.toLowerCase())
-      .limit(1)
-      .get();
+    const q = query(
+      collection(db, 'users'),
+      where('username', '==', username.toLowerCase()),
+      limit(1),
+    );
+    const snapshot = await getDocs(q);
     return snapshot.empty;
   },
 
-  /**
-   * Met à jour le profil utilisateur.
-   * BR-019: sanitisation de la bio côté client.
-   */
   async updateProfile(
     uid: string,
     updates: Partial<Pick<UserProfile, 'displayName' | 'bio' | 'avatarUrl' | 'avatarEmoji' | 'country' | 'favoriteGenres' | 'isPublic' | 'isLibraryPublic'>>,
@@ -86,32 +78,19 @@ export const userService = {
     const sanitized = {
       ...updates,
       ...(updates.bio !== undefined && {bio: sanitizeBio(updates.bio)}),
-      updatedAt: firestore.Timestamp.now(),
+      updatedAt: Timestamp.now(),
     };
-
-    await firestore().collection('users').doc(uid).update(sanitized);
+    await updateDoc(doc(db, 'users', uid), sanitized);
   },
 
-  /**
-   * Met à jour lastActiveAt pour le calcul des utilisateurs actifs (BR-020).
-   */
   async updateLastActive(uid: string): Promise<void> {
-    await firestore()
-      .collection('users')
-      .doc(uid)
-      .update({lastActiveAt: firestore.Timestamp.now()});
+    await updateDoc(doc(db, 'users', uid), {lastActiveAt: Timestamp.now()});
   },
 
-  /**
-   * Met à jour les genres favoris (sélection initiale post-inscription).
-   */
   async updateFavoriteGenres(uid: string, genres: string[]): Promise<void> {
-    await firestore()
-      .collection('users')
-      .doc(uid)
-      .update({
-        favoriteGenres: genres,
-        updatedAt: firestore.Timestamp.now(),
-      });
+    await updateDoc(doc(db, 'users', uid), {
+      favoriteGenres: genres,
+      updatedAt: Timestamp.now(),
+    });
   },
 };

@@ -2,7 +2,7 @@
 import React, {useEffect} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
-import auth from '@react-native-firebase/auth';
+import {getAuth, onAuthStateChanged} from '@react-native-firebase/auth';
 import {useAuthStore} from '../../stores/auth.store';
 import {userService} from '../../services/firebase/user.service';
 import AuthNavigator from './AuthNavigator';
@@ -19,7 +19,7 @@ const RootNavigator = () => {
   const {user, setUser, setInitialized} = useAuthStore();
 
   useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(getAuth(), async (firebaseUser) => {
       if (firebaseUser) {
         const profile = await userService.getProfile(firebaseUser.uid);
         setUser(profile);
