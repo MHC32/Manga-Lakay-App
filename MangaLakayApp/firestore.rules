@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Profils — lecture publique si isPublic, écriture propriétaire seulement
+    match /users/{userId} {
+      allow read: if resource.data.isPublic == true
+                  || request.auth.uid == userId;
+      allow create: if request.auth.uid == userId
+                    && validUserData(request.resource.data);
+      allow update: if request.auth.uid == userId
+                    && validUserData(request.resource.data);
+      allow delete: if false;
+
+      // Bibliothèque — privée par défaut
+      match /library/{mangaId} {
+        allow read: if request.auth.uid == userId
+                    || (get(/databases/$(database)/documents/users/$(userId)).data.isLibraryPublic == true);
+        allow write: if request.auth.uid == userId
+                     && validLibraryEntry(request.resource.data);
+      }
+    }
+
+    // Notes — lecture publique, écriture propriétaire
+    match /ratings/{mangaId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /votes/{userId} {
+        allow read: if true;
+        allow create, update: if request.auth.uid == userId
+                               && request.resource.data.rating is int
+                               && request.resource.data.rating >= 1
+                               && request.resource.data.rating <= 10;
+        allow delete: if request.auth.uid == userId;
+      }
+    }
+
+    // Classements — lecture seule publique
+    match /rankings/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Fonctions de validation
+    function validUserData(data) {
+      return data.username is string
+          && data.username.size() >= 3
+          && data.username.size() <= 20
+          && data.bio is string
+          && data.bio.size() <= 150
+          && !data.bio.matches('.*https?://.*');
+    }
+
+    function validLibraryEntry(data) {
+      return data.status in ['reading','completed','plan_to_read','dropped']
+          && (data.userRating == null
+              || (data.userRating is int
+                  && data.userRating >= 1
+                  && data.userRating <= 10));
+    }
+  }
+}
