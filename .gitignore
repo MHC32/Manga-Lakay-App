@@ -1,0 +1,27 @@
+# Worktrees
+.worktrees/
+
+# Node
+node_modules/
+.expo/
+*.log
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Build
+android/app/build/
+ios/build/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
