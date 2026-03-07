@@ -29,7 +29,7 @@ export const libraryService = {
       orderBy('updatedAt', 'desc'),
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => d.data() as LibraryEntry);
+    return snapshot.docs.map((d: any) => d.data() as LibraryEntry);
   },
 
   async getLibraryEntry(uid: string, mangaId: string): Promise<LibraryEntry | null> {
@@ -85,7 +85,7 @@ export const libraryService = {
       orderBy('updatedAt', 'desc'),
     );
     return onSnapshot(q, snapshot => {
-      const entries = snapshot.docs.map(d => d.data() as LibraryEntry);
+      const entries = snapshot.docs.map((d: any) => d.data() as LibraryEntry);
       callback(entries);
     });
   },

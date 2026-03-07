@@ -9,17 +9,17 @@ import AuthNavigator from './AuthNavigator';
 import AppNavigator from './AppNavigator';
 
 type RootParamList = {
-  Auth: undefined;
   App: undefined;
+  Auth: undefined;
 };
 
 const Root = createStackNavigator<RootParamList>();
 
 const RootNavigator = () => {
-  const {user, setUser, setInitialized} = useAuthStore();
+  const {setUser, setInitialized} = useAuthStore();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(getAuth(), async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(getAuth(), async firebaseUser => {
       if (firebaseUser) {
         const profile = await userService.getProfile(firebaseUser.uid);
         setUser(profile);
@@ -28,18 +28,20 @@ const RootNavigator = () => {
       }
       setInitialized(true);
     });
-
     return unsubscribe;
   }, [setUser, setInitialized]);
 
   return (
     <NavigationContainer>
       <Root.Navigator screenOptions={{headerShown: false}}>
-        {user ? (
-          <Root.Screen name="App" component={AppNavigator} />
-        ) : (
-          <Root.Screen name="Auth" component={AuthNavigator} />
-        )}
+        {/* L'app est toujours accessible — mode guest (BR-004) */}
+        <Root.Screen name="App" component={AppNavigator} />
+        {/* Auth est un stack modal par-dessus l'app */}
+        <Root.Screen
+          name="Auth"
+          component={AuthNavigator}
+          options={{presentation: 'modal'}}
+        />
       </Root.Navigator>
     </NavigationContainer>
   );
