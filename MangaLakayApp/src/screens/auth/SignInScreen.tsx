@@ -52,16 +52,14 @@ const SignInScreen = ({navigation}: Props) => {
       return;
     }
     setIsLoading(true);
-    console.log('[SignIn] Tentative email:', email.trim());
     try {
       const result = await authService.signInWithEmail(email.trim(), password);
-      console.log('[SignIn] Firebase auth OK — uid:', result.user.uid);
       const profile = await userService.getProfile(result.user.uid);
-      console.log('[SignIn] Profil Firestore:', profile ? 'trouvé' : 'introuvable');
+      if (__DEV__) { console.log('[SignIn] Profil Firestore:', profile ? 'trouvé' : 'introuvable'); }
       if (profile) {
         setUser(profile);
         await userService.updateLastActive(result.user.uid);
-        console.log('[SignIn] Connexion réussie — user:', profile.username);
+        if (__DEV__) { console.log('[SignIn] Connexion réussie — user:', profile.username); }
         navigation.getParent()?.goBack();
       } else {
         showError('Profil introuvable. Contacte le support.');
@@ -76,28 +74,27 @@ const SignInScreen = ({navigation}: Props) => {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    console.log('[Google] Lancement Google Sign-In...');
+    if (__DEV__) { console.log('[Google] Lancement Google Sign-In...'); }
     try {
       const result = await authService.signInWithGoogle();
       const uid = result.user.uid;
-      console.log('[Google] Firebase auth OK — uid:', uid, '| email:', result.user.email);
       const existingProfile = await userService.getProfile(uid);
       const isNewUser = !existingProfile;
-      console.log('[Google] Profil Firestore:', existingProfile ? 'trouvé' : 'introuvable (nouvel utilisateur)');
+      if (__DEV__) { console.log('[Google] Profil Firestore:', existingProfile ? 'trouvé' : 'introuvable (nouvel utilisateur)'); }
       let profile = existingProfile;
       if (!profile) {
         const userEmail = result.user.email ?? '';
         const rawName = result.user.displayName ?? 'otaku';
         const username = rawName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 20) || 'user_' + uid.slice(0, 8);
-        console.log('[Google] Création profil — username:', username);
+        if (__DEV__) { console.log('[Google] Création profil — username:', username); }
         await userService.createProfile(uid, userEmail, username);
         profile = await userService.getProfile(uid);
-        console.log('[Google] Profil créé:', profile ? 'OK' : 'ÉCHEC');
+        if (__DEV__) { console.log('[Google] Profil créé:', profile ? 'OK' : 'ÉCHEC'); }
       }
       if (profile) {
         setUser(profile);
         await userService.updateLastActive(uid);
-        console.log('[Google] Connexion réussie — user:', profile.username, '| nouvel utilisateur:', isNewUser);
+        if (__DEV__) { console.log('[Google] Connexion réussie — user:', profile.username, '| nouvel utilisateur:', isNewUser); }
         if (isNewUser) {
           navigation.navigate('GenreSelection', {uid});
         } else {

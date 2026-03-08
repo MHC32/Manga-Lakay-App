@@ -103,28 +103,27 @@ const SignUpScreen = ({navigation}: Props) => {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    console.log('[Google/SignUp] Lancement Google Sign-In...');
+    if (__DEV__) { console.log('[Google/SignUp] Lancement Google Sign-In...'); }
     try {
       const result = await authService.signInWithGoogle();
       const uid = result.user.uid;
-      console.log('[Google/SignUp] Firebase auth OK — uid:', uid, '| email:', result.user.email);
       const existingProfile = await userService.getProfile(uid);
       const isNewUser = !existingProfile;
-      console.log('[Google/SignUp] Profil Firestore:', existingProfile ? 'trouvé' : 'introuvable (nouvel utilisateur)');
+      if (__DEV__) { console.log('[Google/SignUp] Profil Firestore:', existingProfile ? 'trouvé' : 'introuvable (nouvel utilisateur)'); }
       let profile = existingProfile;
       if (!profile) {
         const userEmail = result.user.email ?? '';
         const rawName = result.user.displayName ?? 'otaku';
         const username = rawName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 20) || 'user_' + uid.slice(0, 8);
-        console.log('[Google/SignUp] Création profil — username:', username);
+        if (__DEV__) { console.log('[Google/SignUp] Création profil — username:', username); }
         await userService.createProfile(uid, userEmail, username);
         profile = await userService.getProfile(uid);
-        console.log('[Google/SignUp] Profil créé:', profile ? 'OK' : 'ÉCHEC');
+        if (__DEV__) { console.log('[Google/SignUp] Profil créé:', profile ? 'OK' : 'ÉCHEC'); }
       }
       if (profile) {
         setUser(profile);
         await userService.updateLastActive(uid);
-        console.log('[Google/SignUp] Connexion réussie — user:', profile.username, '| nouvel utilisateur:', isNewUser);
+        if (__DEV__) { console.log('[Google/SignUp] Connexion réussie — user:', profile.username, '| nouvel utilisateur:', isNewUser); }
         if (isNewUser) {
           navigation.navigate('GenreSelection', {uid});
         } else {

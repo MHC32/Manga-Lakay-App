@@ -27,13 +27,17 @@ export const authService = {
   },
 
   async signInWithGoogle() {
+    if (__DEV__) { console.log('[authService] hasPlayServices...'); }
     await GoogleSignin.hasPlayServices();
+    if (__DEV__) { console.log('[authService] Play Services OK — appel GoogleSignin.signIn()...'); }
     const signInResult = await GoogleSignin.signIn();
     const idToken = signInResult.data?.idToken ?? (signInResult as {idToken?: string}).idToken;
+    if (__DEV__) { console.log('[authService] idToken présent:', !!idToken); }
     if (!idToken) {
       throw new Error('Google Sign-In: idToken manquant');
     }
     const googleCredential = GoogleAuthProvider.credential(idToken);
+    if (__DEV__) { console.log('[authService] Credential créé — signInWithCredential...'); }
     return signInWithCredential(getAuth(), googleCredential);
   },
 
