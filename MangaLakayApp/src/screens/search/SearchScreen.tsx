@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
+  Modal,
 } from 'react-native';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -163,6 +164,15 @@ const SearchScreen = () => {
   const [popularMangas, setPopularMangas] = useState<Manga[]>([]);
   const [loadingPopular, setLoadingPopular] = useState(true);
 
+  // ─── Filtres avancés (US-008) ────────────────────────────────────────────────
+  const [filters, setFilters] = useState({
+    status: null as string | null,
+    demographic: null as string | null,
+    sortBy: 'relevance' as 'relevance' | 'rating' | 'follows' | 'updatedAt',
+  });
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const activeFilterCount = [filters.status, filters.demographic].filter(Boolean).length;
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -187,7 +197,23 @@ const SearchScreen = () => {
 
   // ─── Recherche ──────────────────────────────────────────────────────────────
 
-  const doSearch = useCallback(async (text: string, tagId: string | null, reset = true) => {
+  // Convertit sortBy en paramètre order compatible MangaListParams
+  const buildOrder = (sortBy: 'relevance' | 'rating' | 'follows' | 'updatedAt') => {
+    switch (sortBy) {
+      case 'rating':     return {rating: 'desc' as const};
+      case 'follows':    return {followedCount: 'desc' as const};
+      case 'updatedAt':  return {updatedAt: 'desc' as const};
+      case 'relevance':
+      default:           return {followedCount: 'desc' as const};
+    }
+  };
+
+  const doSearch = useCallback(async (
+    text: string,
+    tagId: string | null,
+    reset = true,
+    activeFilters = filters,
+  ) => {
     const trimmed = text.trim();
     const hasQuery = trimmed.length >= 3;
     const hasTag = tagId !== null;
@@ -211,10 +237,12 @@ const SearchScreen = () => {
       const params: any = {
         limit: 20,
         offset: currentOffset,
-        order: {followedCount: 'desc'},
+        order: buildOrder(activeFilters.sortBy),
       };
       if (hasQuery) params.title = trimmed;
       if (hasTag) params.includedTags = [tagId];
+      if (activeFilters.status) params.status = [activeFilters.status];
+      if (activeFilters.demographic) params.publicationDemographic = [activeFilters.demographic];
 
       const {mangas, total: t} = await mangaService.searchManga(params);
 
@@ -242,7 +270,7 @@ const SearchScreen = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [offset, history]);
+  }, [offset, history, filters]);
 
   // Debounce sur la saisie (US-007 : 500ms, 3 chars min)
   const onChangeText = (text: string) => {
@@ -302,31 +330,41 @@ const SearchScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Chèche 🔍</Text>
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            ref={inputRef}
-            style={styles.input}
-            placeholder="Titre, auteur, genre..."
-            placeholderTextColor={colors.text60}
-            value={query}
-            onChangeText={onChangeText}
-            autoCorrect={false}
-            autoCapitalize="none"
-            returnKeyType="search"
-            onSubmitEditing={() => {
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              doSearch(query, activeTagId);
-            }}
-          />
-          {isSearching && (
-            <ActivityIndicator color={colors.orange} size="small" style={{marginRight: 8}} />
-          )}
-          {(query.length > 0 || activeTagId) && !isSearching && (
-            <TouchableOpacity onPress={onClear} style={styles.clearBtn}>
-              <Text style={styles.clearText}>✕</Text>
-            </TouchableOpacity>
-          )}
+        <View style={styles.searchRow}>
+          <View style={[styles.searchBar, {flex: 1}]}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              placeholder="Titre, auteur, genre..."
+              placeholderTextColor={colors.text60}
+              value={query}
+              onChangeText={onChangeText}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              onSubmitEditing={() => {
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+                doSearch(query, activeTagId);
+              }}
+            />
+            {isSearching && (
+              <ActivityIndicator color={colors.orange} size="small" style={{marginRight: 8}} />
+            )}
+            {(query.length > 0 || activeTagId) && !isSearching && (
+              <TouchableOpacity onPress={onClear} style={styles.clearBtn}>
+                <Text style={styles.clearText}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity onPress={() => setShowFilterSheet(true)} style={styles.filterBtn}>
+            <Text style={styles.filterBtnText}>Filtres</Text>
+            {activeFilterCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -474,6 +512,100 @@ const SearchScreen = () => {
           />
         </>
       )}
+
+      {/* Bottom sheet filtres avancés (US-008) */}
+      <Modal visible={showFilterSheet} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.filterOverlay}
+          activeOpacity={1}
+          onPress={() => setShowFilterSheet(false)}
+        />
+        <View style={styles.filterSheet}>
+          <View style={styles.filterSheetHandle} />
+          <Text style={styles.filterSheetTitle}>Filtres</Text>
+
+          {/* Statut */}
+          <Text style={styles.filterLabel}>Statut</Text>
+          <View style={styles.filterChips}>
+            {[
+              {value: 'ongoing',   label: 'En cours'},
+              {value: 'completed', label: 'Terminé'},
+              {value: 'hiatus',    label: 'En pause'},
+              {value: 'cancelled', label: 'Annulé'},
+            ].map(({value, label}) => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.chip, filters.status === value && styles.chipActive]}
+                onPress={() => setFilters(f => ({...f, status: f.status === value ? null : value}))}>
+                <Text style={[styles.chipText, filters.status === value && styles.chipTextActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Démographie */}
+          <Text style={styles.filterLabel}>Public</Text>
+          <View style={styles.filterChips}>
+            {[
+              {value: 'shounen', label: 'Shounen'},
+              {value: 'shoujo',  label: 'Shoujo'},
+              {value: 'seinen',  label: 'Seinen'},
+              {value: 'josei',   label: 'Josei'},
+            ].map(({value, label}) => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.chip, filters.demographic === value && styles.chipActive]}
+                onPress={() => setFilters(f => ({...f, demographic: f.demographic === value ? null : value}))}>
+                <Text style={[styles.chipText, filters.demographic === value && styles.chipTextActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Tri */}
+          <Text style={styles.filterLabel}>Trier par</Text>
+          <View style={styles.filterChips}>
+            {[
+              {value: 'relevance', label: 'Pertinence'},
+              {value: 'rating',    label: 'Note'},
+              {value: 'follows',   label: 'Popularité'},
+              {value: 'updatedAt', label: 'Récent'},
+            ].map(({value, label}) => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.chip, filters.sortBy === value && styles.chipActive]}
+                onPress={() => setFilters(f => ({...f, sortBy: value as 'relevance' | 'rating' | 'follows' | 'updatedAt'}))}>
+                <Text style={[styles.chipText, filters.sortBy === value && styles.chipTextActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Boutons actions */}
+          <View style={styles.filterActions}>
+            <TouchableOpacity
+              style={styles.filterReset}
+              onPress={() => setFilters({status: null, demographic: null, sortBy: 'relevance'})}>
+              <Text style={styles.filterResetText}>Réinitialiser</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterApply}
+              onPress={() => {
+                setShowFilterSheet(false);
+                // Relancer la recherche si query active ou tag actif
+                const trimmed = query.trim();
+                if (trimmed.length >= 3 || activeTagId) {
+                  doSearch(trimmed, activeTagId, true, filters);
+                }
+              }}>
+              <Text style={styles.filterApplyText}>Appliquer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -494,6 +626,11 @@ const styles = StyleSheet.create({
     color: colors.text100,
     marginBottom: spacing.s4,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s2,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -503,6 +640,134 @@ const styles = StyleSheet.create({
     height: 44,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+
+  // Bouton filtres
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.s3,
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 4,
+    flexShrink: 0,
+  },
+  filterBtnText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.text60,
+  },
+  filterBadge: {
+    backgroundColor: colors.orange,
+    borderRadius: radius.full,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  filterBadgeText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 10,
+    color: colors.text100,
+  },
+
+  // Bottom sheet filtres
+  filterOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  filterSheet: {
+    backgroundColor: colors.bgCard,
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
+    paddingHorizontal: spacing.s4,
+    paddingBottom: spacing.s8,
+    paddingTop: spacing.s3,
+  },
+  filterSheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: colors.border,
+    borderRadius: radius.full,
+    alignSelf: 'center',
+    marginBottom: spacing.s4,
+  },
+  filterSheetTitle: {
+    fontFamily: fonts.displayBold,
+    fontSize: 18,
+    color: colors.text100,
+    marginBottom: spacing.s4,
+  },
+  filterLabel: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+    color: colors.text60,
+    letterSpacing: 0.5,
+    marginBottom: spacing.s2,
+    marginTop: spacing.s3,
+  },
+  filterChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.s2,
+  },
+  chip: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.full,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipActive: {
+    backgroundColor: 'rgba(255,107,53,0.15)',
+    borderColor: colors.orange,
+  },
+  chipText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.text60,
+  },
+  chipTextActive: {
+    color: colors.orange,
+    fontWeight: '600',
+  },
+  filterActions: {
+    flexDirection: 'row',
+    gap: spacing.s3,
+    marginTop: spacing.s5,
+  },
+  filterReset: {
+    flex: 1,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterResetText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 14,
+    color: colors.text60,
+  },
+  filterApply: {
+    flex: 1,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.orange,
+    borderRadius: radius.lg,
+  },
+  filterApplyText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 14,
+    color: colors.text100,
   },
   searchIcon: {fontSize: 16, marginRight: 8},
   input: {
