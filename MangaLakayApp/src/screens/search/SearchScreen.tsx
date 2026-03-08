@@ -173,6 +173,12 @@ const SearchScreen = () => {
     languageFilter: 'all' as 'all' | 'fr_only',
   });
   const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [pendingFilters, setPendingFilters] = useState({
+    status: null as string | null,
+    demographic: null as string | null,
+    sortBy: 'relevance' as 'relevance' | 'rating' | 'follows' | 'updatedAt',
+    languageFilter: 'all' as 'all' | 'fr_only',
+  });
   const activeFilterCount = [
     filters.status,
     filters.demographic,
@@ -366,7 +372,7 @@ const SearchScreen = () => {
               </TouchableOpacity>
             )}
           </View>
-          <TouchableOpacity onPress={() => setShowFilterSheet(true)} style={styles.filterBtn}>
+          <TouchableOpacity onPress={() => { setPendingFilters(filters); setShowFilterSheet(true); }} style={styles.filterBtn}>
             <Text style={styles.filterBtnText}>Filtres</Text>
             {activeFilterCount > 0 && (
               <View style={styles.filterBadge}>
@@ -544,9 +550,9 @@ const SearchScreen = () => {
             ].map(({value, label}) => (
               <TouchableOpacity
                 key={value}
-                style={[styles.chip, filters.status === value && styles.chipActive]}
-                onPress={() => setFilters(f => ({...f, status: f.status === value ? null : value}))}>
-                <Text style={[styles.chipText, filters.status === value && styles.chipTextActive]}>
+                style={[styles.chip, pendingFilters.status === value && styles.chipActive]}
+                onPress={() => setPendingFilters(f => ({...f, status: f.status === value ? null : value}))}>
+                <Text style={[styles.chipText, pendingFilters.status === value && styles.chipTextActive]}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -564,9 +570,9 @@ const SearchScreen = () => {
             ].map(({value, label}) => (
               <TouchableOpacity
                 key={value}
-                style={[styles.chip, filters.demographic === value && styles.chipActive]}
-                onPress={() => setFilters(f => ({...f, demographic: f.demographic === value ? null : value}))}>
-                <Text style={[styles.chipText, filters.demographic === value && styles.chipTextActive]}>
+                style={[styles.chip, pendingFilters.demographic === value && styles.chipActive]}
+                onPress={() => setPendingFilters(f => ({...f, demographic: f.demographic === value ? null : value}))}>
+                <Text style={[styles.chipText, pendingFilters.demographic === value && styles.chipTextActive]}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -584,9 +590,9 @@ const SearchScreen = () => {
             ].map(({value, label}) => (
               <TouchableOpacity
                 key={value}
-                style={[styles.chip, filters.sortBy === value && styles.chipActive]}
-                onPress={() => setFilters(f => ({...f, sortBy: value as 'relevance' | 'rating' | 'follows' | 'updatedAt'}))}>
-                <Text style={[styles.chipText, filters.sortBy === value && styles.chipTextActive]}>
+                style={[styles.chip, pendingFilters.sortBy === value && styles.chipActive]}
+                onPress={() => setPendingFilters(f => ({...f, sortBy: value as 'relevance' | 'rating' | 'follows' | 'updatedAt'}))}>
+                <Text style={[styles.chipText, pendingFilters.sortBy === value && styles.chipTextActive]}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -602,9 +608,9 @@ const SearchScreen = () => {
             ] as const).map(({value, label}) => (
               <TouchableOpacity
                 key={value}
-                style={[styles.chip, filters.languageFilter === value && styles.chipActive]}
-                onPress={() => setFilters(f => ({...f, languageFilter: value}))}>
-                <Text style={[styles.chipText, filters.languageFilter === value && styles.chipTextActive]}>
+                style={[styles.chip, pendingFilters.languageFilter === value && styles.chipActive]}
+                onPress={() => setPendingFilters(f => ({...f, languageFilter: value}))}>
+                <Text style={[styles.chipText, pendingFilters.languageFilter === value && styles.chipTextActive]}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -615,17 +621,18 @@ const SearchScreen = () => {
           <View style={styles.filterActions}>
             <TouchableOpacity
               style={styles.filterReset}
-              onPress={() => setFilters({status: null, demographic: null, sortBy: 'relevance', languageFilter: 'all'})}>
+              onPress={() => setPendingFilters({status: null, demographic: null, sortBy: 'relevance', languageFilter: 'all'})}>
               <Text style={styles.filterResetText}>Réinitialiser</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.filterApply}
               onPress={() => {
+                setFilters(pendingFilters);
                 setShowFilterSheet(false);
                 // Relancer la recherche si query active ou tag actif
                 const trimmed = query.trim();
                 if (trimmed.length >= 3 || activeTagId) {
-                  doSearch(trimmed, activeTagId, true, filters);
+                  doSearch(trimmed, activeTagId, true, pendingFilters);
                 }
               }}>
               <Text style={styles.filterApplyText}>Appliquer</Text>
