@@ -149,7 +149,7 @@ const PopularItem = ({
 
 const SearchScreen = () => {
   const navigation = useNavigation<StackNavigationProp<SearchStackParamList>>();
-  const {pendingTagId, pendingTagLabel, clearPendingTag} = useSearchStore();
+  const {pendingTagId, pendingTagLabel, pendingLanguageFilter, clearPendingTag} = useSearchStore();
 
   const [query, setQuery] = useState('');
   const [activeTagId, setActiveTagId] = useState<string | null>(null);
@@ -202,9 +202,15 @@ const SearchScreen = () => {
     useCallback(() => {
       if (pendingTagId) {
         setActiveTagId(pendingTagId);
+      }
+      if (pendingLanguageFilter) {
+        setFilters(f => ({...f, languageFilter: pendingLanguageFilter}));
+        setPendingFilters(f => ({...f, languageFilter: pendingLanguageFilter}));
+      }
+      if (pendingTagId || pendingLanguageFilter) {
         clearPendingTag();
       }
-    }, [pendingTagId, clearPendingTag]),
+    }, [pendingTagId, pendingLanguageFilter, clearPendingTag]),
   );
 
   // ─── Recherche ──────────────────────────────────────────────────────────────
