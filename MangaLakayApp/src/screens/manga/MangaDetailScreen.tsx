@@ -27,6 +27,7 @@ import {colors, spacing, radius, fonts} from '../../constants/theme';
 import {getTitle, getDescription} from '../../utils/locale';
 import {formatRelativeDate} from '../../utils/date';
 import {SharedDetailParams} from '../../types/navigation.types';
+import {useSearchStore} from '../../stores/search.store';
 
 type Props = StackScreenProps<SharedDetailParams, 'MangaDetail'>;
 
@@ -95,6 +96,7 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
   const {mangaId} = route.params;
   const {user} = useAuthStore();
   const {isInLibrary, getEntry} = useLibraryStore();
+  const {setPendingTag} = useSearchStore();
   const insets = useSafeAreaInsets();
 
   const [manga, setManga] = useState<Manga | null>(null);
@@ -455,11 +457,19 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
             <Text style={styles.sectionLabel}>Genres</Text>
             <View style={styles.tagsWrap}>
               {manga.tags.slice(0, 10).map(tag => (
-                <View key={tag.id} style={styles.tagItem}>
+                <TouchableOpacity
+                  key={tag.id}
+                  style={styles.tagItem}
+                  onPress={() => {
+                    const label = tag.name.fr ?? tag.name.en ?? tag.id;
+                    setPendingTag(tag.id, label);
+                    navigation.getParent()?.navigate('SearchStack');
+                  }}
+                  activeOpacity={0.7}>
                   <Text style={styles.tagText}>
                     {tag.name.fr ?? tag.name.en ?? tag.id}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
 
