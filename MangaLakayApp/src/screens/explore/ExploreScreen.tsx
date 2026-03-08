@@ -153,7 +153,7 @@ const LIMIT = 20;
 
 const ExploreScreen = () => {
   const navigation = useNavigation<NavProp>();
-  const {setPendingTag} = useSearchStore();
+  const {setPendingTag, setPendingLanguageFilter} = useSearchStore();
 
   const [newMangas, setNewMangas] = useState<Manga[]>([]);
   const [loadingNew, setLoadingNew] = useState(true);
@@ -216,6 +216,11 @@ const ExploreScreen = () => {
     },
     [navigation, setPendingTag],
   );
+
+  const goToFrenchSearch = useCallback(() => {
+    setPendingLanguageFilter('fr_only');
+    (navigation as any).getParent()?.navigate('SearchStack');
+  }, [navigation, setPendingLanguageFilter]);
 
   return (
     <ScreenWrapper edges={['top']}>
@@ -306,6 +311,31 @@ const ExploreScreen = () => {
           </View>
         </View>
       </View>
+
+      {/* Divider */}
+      <View style={styles.divider} />
+
+      {/* Disponible en Français */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Disponible en Français 🇫🇷</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.frenchCard}
+        onPress={goToFrenchSearch}
+        activeOpacity={0.85}>
+        <View style={styles.frenchCardLeft}>
+          <Text style={styles.frenchFlag}>🇫🇷</Text>
+        </View>
+        <View style={styles.frenchCardContent}>
+          <Text style={styles.frenchCardTitle}>Mangas traduits en français</Text>
+          <Text style={styles.frenchCardDesc}>
+            Filtre les mangas ayant des chapitres disponibles en français sur MangaDex.
+          </Text>
+          <View style={styles.frenchCardBtn}>
+            <Text style={styles.frenchCardBtnText}>Explorer en FR →</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
 
       {/* Divider */}
       <View style={styles.divider} />
@@ -575,6 +605,55 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgElevated,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+
+  // Section Français
+  frenchCard: {
+    flexDirection: 'row',
+    marginHorizontal: spacing.s4,
+    marginBottom: spacing.s4,
+    backgroundColor: 'rgba(0,212,170,0.07)',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.2)',
+    padding: spacing.s4,
+    gap: spacing.s3,
+    alignItems: 'center',
+  },
+  frenchCardLeft: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  frenchFlag: {fontSize: 36},
+  frenchCardContent: {flex: 1},
+  frenchCardTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text100,
+    marginBottom: 4,
+  },
+  frenchCardDesc: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.text60,
+    marginBottom: spacing.s3,
+    lineHeight: 18,
+  },
+  frenchCardBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.teal,
+    paddingHorizontal: spacing.s3,
+    paddingVertical: spacing.s2,
+    borderRadius: radius.sm,
+  },
+  frenchCardBtnText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.bgBase,
   },
 });
 
