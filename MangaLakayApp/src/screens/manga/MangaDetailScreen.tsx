@@ -254,6 +254,9 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
       : parseFloat(b.chapter ?? '0') - parseFloat(a.chapter ?? '0'),
   );
 
+  const frChapters = chapters.filter(ch => ch.translatedLanguage === 'fr');
+  const isEnglishOnly = chapters.length > 0 && frChapters.length === 0;
+
   const readChapterIds = new Set(libraryEntry?.chaptersRead ?? []);
 
   // ─── États de chargement / erreur ─────────────────────────────────────────
@@ -578,6 +581,18 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {isEnglishOnly && (
+              <View style={styles.englishOnlyBanner}>
+                <Text style={styles.englishOnlyFlag}>🇬🇧</Text>
+                <View style={styles.englishOnlyInfo}>
+                  <Text style={styles.englishOnlyTitle}>Disponible en anglais uniquement</Text>
+                  <Text style={styles.englishOnlyDesc}>
+                    Ce manga n'a pas encore de traduction française sur MangaDex.
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {sortedChapters.length === 0 ? (
               <View style={styles.noChaptersBox}>
@@ -1442,6 +1457,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 14,
+  },
+  englishOnlyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s3,
+    backgroundColor: 'rgba(14,165,233,0.08)',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.tealBlue,
+    paddingHorizontal: spacing.s4,
+    paddingVertical: spacing.s3,
+    marginHorizontal: spacing.s4,
+    marginBottom: spacing.s3,
+    borderRadius: radius.sm,
+  },
+  englishOnlyFlag: {fontSize: 22},
+  englishOnlyInfo: {flex: 1},
+  englishOnlyTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text100,
+    marginBottom: 2,
+  },
+  englishOnlyDesc: {
+    fontSize: 12,
+    color: colors.text60,
   },
 });
 
