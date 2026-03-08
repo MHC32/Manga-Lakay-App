@@ -17,6 +17,7 @@ import {sanitizeUsername} from '../../utils/sanitize';
 import {colors, fonts, spacing, radius} from '../../constants/theme';
 import {AuthStackParamList} from '../../types/navigation.types';
 import {MIN_USERNAME_LENGTH, MAX_USERNAME_LENGTH} from '../../constants/config';
+import ScreenWrapper from '../../components/layout/ScreenWrapper';
 
 type Props = StackScreenProps<AuthStackParamList, 'SignUp'>;
 
@@ -164,7 +165,7 @@ const SignUpScreen = ({navigation}: Props) => {
   };
 
   return (
-    <View style={styles.screen}>
+    <ScreenWrapper edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -330,7 +331,7 @@ const SignUpScreen = ({navigation}: Props) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 };
 

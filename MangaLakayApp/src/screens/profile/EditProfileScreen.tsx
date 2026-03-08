@@ -14,6 +14,7 @@ import {useAuthStore} from '../../stores/auth.store';
 import {userService} from '../../services/firebase/user.service';
 import {colors, spacing, radius, fonts} from '../../constants/theme';
 import {ProfileStackParamList} from '../../types/navigation.types';
+import ScreenWrapper from '../../components/layout/ScreenWrapper';
 
 type Props = StackScreenProps<ProfileStackParamList, 'EditProfile'>;
 
@@ -126,7 +127,7 @@ const EditProfileScreen = ({navigation}: Props) => {
   const currentCountry = COUNTRIES.find(c => c.code === country);
 
   return (
-    <View style={styles.screen}>
+    <ScreenWrapper edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -340,7 +341,7 @@ const EditProfileScreen = ({navigation}: Props) => {
 
         <View style={{height: 60}} />
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 };
 

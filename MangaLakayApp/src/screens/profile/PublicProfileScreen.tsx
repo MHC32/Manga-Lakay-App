@@ -19,6 +19,7 @@ import {mangaService} from '../../services/mangadex/manga.service';
 import {UserProfile, LibraryEntry} from '../../types/firebase.types';
 import {Manga} from '../../types/mangadex.types';
 import {colors, spacing, radius, fonts} from '../../constants/theme';
+import ScreenWrapper from '../../components/layout/ScreenWrapper';
 
 type Props = StackScreenProps<ProfileStackParamList, 'PublicProfile'>;
 
@@ -218,7 +219,7 @@ const PublicProfileScreen = ({route, navigation}: Props) => {
   // ─── Rendu principal ──────────────────────────────────────────────────────
 
   return (
-    <View style={styles.screen}>
+    <ScreenWrapper edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
@@ -389,7 +390,7 @@ const PublicProfileScreen = ({route, navigation}: Props) => {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 };
 

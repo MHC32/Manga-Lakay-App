@@ -15,6 +15,7 @@ import {userService} from '../../services/firebase/user.service';
 import {useAuthStore} from '../../stores/auth.store';
 import {colors, fonts, spacing, radius} from '../../constants/theme';
 import {AuthStackParamList} from '../../types/navigation.types';
+import ScreenWrapper from '../../components/layout/ScreenWrapper';
 
 type Props = StackScreenProps<AuthStackParamList, 'SignIn'>;
 
@@ -127,7 +128,7 @@ const SignInScreen = ({navigation}: Props) => {
   };
 
   return (
-    <View style={styles.screen}>
+    <ScreenWrapper edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -239,7 +240,7 @@ const SignInScreen = ({navigation}: Props) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 };
 
