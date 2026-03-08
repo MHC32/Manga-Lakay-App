@@ -21,6 +21,7 @@ import {mangaService} from '../../services/mangadex/manga.service';
 import {colors, spacing, radius, fonts} from '../../constants/theme';
 import {ProfileStackParamList} from '../../types/navigation.types';
 import {getTitle} from '../../utils/locale';
+import ScreenWrapper from '../../components/layout/ScreenWrapper';
 
 type NavProp = StackNavigationProp<ProfileStackParamList, 'LibraryMain'>;
 
@@ -320,7 +321,7 @@ const LibraryScreen = () => {
   // ─── Mode guest (BR-004) ───────────────────────────────────────────────────
   if (!user) {
     return (
-      <View style={styles.screen}>
+      <ScreenWrapper edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Bibliothèque</Text>
         </View>
@@ -332,14 +333,14 @@ const LibraryScreen = () => {
             onCta={() => (navigation as any).navigate('Auth')}
           />
         </View>
-      </View>
+      </ScreenWrapper>
     );
   }
 
   const isBusy = isLoading || loadingMangas;
 
   return (
-    <View style={styles.screen}>
+    <ScreenWrapper edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Bibliothèque</Text>
@@ -486,7 +487,7 @@ const LibraryScreen = () => {
           )}
         />
       )}
-    </View>
+    </ScreenWrapper>
   );
 };
 

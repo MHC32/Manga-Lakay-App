@@ -23,6 +23,7 @@ import {CacheKeys} from '../../services/cache/cache.service';
 import {colors, spacing, radius, fonts} from '../../constants/theme';
 import {getTitle} from '../../utils/locale';
 import {useSearchStore} from '../../stores/search.store';
+import ScreenWrapper from '../../components/layout/ScreenWrapper';
 
 const {width: SCREEN_WIDTH} = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - spacing.s4 * 2 - spacing.s3) / 2;
@@ -325,7 +326,7 @@ const SearchScreen = () => {
   // ─── Rendu ──────────────────────────────────────────────────────────────────
 
   return (
-    <View style={styles.screen}>
+    <ScreenWrapper edges={['top']}>
 
       {/* Header */}
       <View style={styles.header}>
@@ -606,7 +607,7 @@ const SearchScreen = () => {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScreenWrapper>
   );
 };
 

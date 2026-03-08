@@ -14,6 +14,7 @@ import {useLibraryStore} from '../../stores/library.store';
 import {EmptyState} from '../../components/ui';
 import {colors, spacing, radius, fonts} from '../../constants/theme';
 import {ProfileStackParamList} from '../../types/navigation.types';
+import ScreenWrapper from '../../components/layout/ScreenWrapper';
 
 type NavProp = StackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 type ProfileTab = 'badges' | 'activity' | 'favorites';
@@ -87,7 +88,7 @@ const ProfileScreen = () => {
   // ─── Mode guest ───────────────────────────────────────────────────────────
   if (!user) {
     return (
-      <View style={styles.screen}>
+      <ScreenWrapper edges={['top']}>
         <View style={styles.guestHeader}>
           <Text style={styles.guestTitle}>Profil</Text>
         </View>
@@ -99,7 +100,7 @@ const ProfileScreen = () => {
             onCta={() => (navigation as any).getParent()?.navigate('Auth')}
           />
         </View>
-      </View>
+      </ScreenWrapper>
     );
   }
 
@@ -116,7 +117,7 @@ const ProfileScreen = () => {
   ];
 
   return (
-    <View style={styles.screen}>
+    <ScreenWrapper edges={['top']}>
 
       {/* ── Header + XP (scrollable dans un premier ScrollView) ─────── */}
       <ScrollView showsVerticalScrollIndicator={false} style={styles.topScroll} scrollEnabled={false} nestedScrollEnabled>
@@ -329,7 +330,7 @@ const ProfileScreen = () => {
         <View style={{height: 100}} />
       </ScrollView>
 
-    </View>
+    </ScreenWrapper>
   );
 };
 

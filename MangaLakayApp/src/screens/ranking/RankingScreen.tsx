@@ -19,6 +19,7 @@ import {EmptyState} from '../../components/ui';
 import {colors, spacing, radius, fonts} from '../../constants/theme';
 import {RankingStackParamList} from '../../types/navigation.types';
 import {getTitle} from '../../utils/locale';
+import ScreenWrapper from '../../components/layout/ScreenWrapper';
 
 type Period = 'weekly' | 'monthly' | 'alltime';
 
@@ -208,7 +209,7 @@ const RankingScreen = () => {
   ];
 
   return (
-    <View style={styles.screen}>
+    <ScreenWrapper edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.titleRow}>
@@ -348,7 +349,7 @@ const RankingScreen = () => {
           )}
         />
       )}
-    </View>
+    </ScreenWrapper>
   );
 };
 
