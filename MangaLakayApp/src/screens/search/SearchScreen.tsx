@@ -170,9 +170,14 @@ const SearchScreen = () => {
     status: null as string | null,
     demographic: null as string | null,
     sortBy: 'relevance' as 'relevance' | 'rating' | 'follows' | 'updatedAt',
+    languageFilter: 'all' as 'all' | 'fr_only',
   });
   const [showFilterSheet, setShowFilterSheet] = useState(false);
-  const activeFilterCount = [filters.status, filters.demographic].filter(Boolean).length;
+  const activeFilterCount = [
+    filters.status,
+    filters.demographic,
+    filters.languageFilter !== 'all' ? 'fr' : null,
+  ].filter(Boolean).length;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
@@ -244,6 +249,9 @@ const SearchScreen = () => {
       if (hasTag) params.includedTags = [tagId];
       if (activeFilters.status) params.status = [activeFilters.status];
       if (activeFilters.demographic) params.publicationDemographic = [activeFilters.demographic];
+      if (activeFilters.languageFilter === 'fr_only') {
+        params.availableTranslatedLanguage = ['fr'];
+      }
 
       const {mangas, total: t} = await mangaService.searchManga(params);
 
@@ -585,11 +593,29 @@ const SearchScreen = () => {
             ))}
           </View>
 
+          {/* Langue */}
+          <Text style={styles.filterLabel}>Langue</Text>
+          <View style={styles.filterChips}>
+            {([
+              {value: 'all',     label: 'Toutes langues'},
+              {value: 'fr_only', label: '🇫🇷 Français uniquement'},
+            ] as const).map(({value, label}) => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.chip, filters.languageFilter === value && styles.chipActive]}
+                onPress={() => setFilters(f => ({...f, languageFilter: value}))}>
+                <Text style={[styles.chipText, filters.languageFilter === value && styles.chipTextActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* Boutons actions */}
           <View style={styles.filterActions}>
             <TouchableOpacity
               style={styles.filterReset}
-              onPress={() => setFilters({status: null, demographic: null, sortBy: 'relevance'})}>
+              onPress={() => setFilters({status: null, demographic: null, sortBy: 'relevance', languageFilter: 'all'})}>
               <Text style={styles.filterResetText}>Réinitialiser</Text>
             </TouchableOpacity>
             <TouchableOpacity
