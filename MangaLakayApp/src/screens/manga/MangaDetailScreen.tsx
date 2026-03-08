@@ -634,7 +634,7 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
                             ch.translatedLanguage === 'fr' ? styles.chLangBadgeFR : styles.chLangBadgeEN,
                           ]}>
                             <Text style={styles.chLangBadgeText}>
-                              {ch.translatedLanguage === 'fr' ? '🇫🇷 FR' : '🇬🇧 EN'}
+                              {(LANG_FLAGS[ch.translatedLanguage] ?? '🌐') + ' ' + ch.translatedLanguage.toUpperCase()}
                             </Text>
                           </View>
                           <Text style={styles.chPages}>{ch.pageCount}p</Text>
