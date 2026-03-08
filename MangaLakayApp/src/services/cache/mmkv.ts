@@ -12,3 +12,25 @@ export const mmkv = {
   contains: (key: string): boolean => storage.contains(key),
   clearAll: (): void => storage.clearAll(),
 };
+
+// ─── Helpers historique des recherches (US-007, BR-011) ───────────────────────
+
+const SEARCH_HISTORY_KEY = 'user:searchHistory';
+
+export const getSearchHistory = (): string[] => {
+  const raw = storage.getString(SEARCH_HISTORY_KEY);
+  if (!raw) { return []; }
+  try { return JSON.parse(raw) as string[]; } catch { return []; }
+};
+
+export const addToSearchHistory = (query: string): void => {
+  const history = getSearchHistory().filter(
+    q => q.toLowerCase() !== query.toLowerCase(),
+  );
+  const updated = [query, ...history].slice(0, 10);
+  storage.set(SEARCH_HISTORY_KEY, JSON.stringify(updated));
+};
+
+export const clearSearchHistory = (): void => {
+  storage.remove(SEARCH_HISTORY_KEY);
+};
