@@ -51,14 +51,16 @@ export const chapterService = {
           offset,
           order: {chapter: 'asc'},
           includes: ['scanlation_group'],
-          // Exclure les chapitres avec URL externe (pas lisibles dans l'app)
-          externalUrl: 'none',
         },
       },
     );
 
+    // Filtrer les chapitres non lisibles dans l'app (URL externe ou aucune page)
+    const readable = response.data.data.filter(
+      raw => !raw.attributes.externalUrl && raw.attributes.pages > 0,
+    );
     const result = {
-      chapters: response.data.data.map(rawToChapter),
+      chapters: readable.map(rawToChapter),
       total: response.data.total,
     };
 
@@ -99,6 +101,74 @@ export const chapterService = {
   },
 
   /**
+   * Récupère les chapitres publiés dans les 7 derniers jours pour une liste de mangas suivis.
+   * Batches de 10 mangaIds max par appel (BR-010). Cache TTL 30min.
+   */
+  async getRecentChaptersForMangas(mangaIds: string[]): Promise<Chapter[]> {
+    if (mangaIds.length === 0) {
+      return [];
+    }
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const since = sevenDaysAgo.toISOString().split('.')[0]; // Format: 2026-03-01T00:00:00
+
+    // Batch de max 10 mangaIds par appel (rate limiting BR-010)
+    const batches: string[][] = [];
+    for (let i = 0; i < mangaIds.length; i += 10) {
+      batches.push(mangaIds.slice(i, i + 10));
+    }
+
+    const results = await Promise.all(
+      batches.map(batch =>
+        mangadexClient
+          .get<ChapterListResponse>('/chapter', {
+            params: {
+              manga: batch,
+              publishAtSince: since,
+              order: {publishAt: 'desc'},
+              limit: 20,
+              translatedLanguage: [...ALLOWED_LANGUAGES],
+              contentRating: ['safe', 'suggestive'],
+              includes: ['manga', 'cover_art'],
+            },
+          })
+          .catch(() => null),
+      ),
+    );
+
+    const now = Date.now();
+    const allChapters = results
+      .filter(Boolean)
+      .flatMap(r =>
+        (r?.data?.data ?? [])
+          .filter(
+            (raw: MangaDexChapterRaw) =>
+              !raw.attributes.externalUrl &&
+              raw.attributes.pages > 0 &&
+              new Date(raw.attributes.readableAt).getTime() <= now,
+          )
+          .map((raw: MangaDexChapterRaw) => rawToChapter(raw)),
+      );
+
+    // Dédupliquer par ID et trier par date de publication
+    const seen = new Set<string>();
+    return allChapters
+      .filter(c => {
+        if (seen.has(c.id)) {
+          return false;
+        }
+        seen.add(c.id);
+        return true;
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.publishAt).getTime() - new Date(a.publishAt).getTime(),
+      )
+      .slice(0, 20);
+  },
+
+  /**
    * Récupère les chapitres récents (nouvelles sorties) pour l'écran d'accueil.
    * Cache TTL 30min.
    */
@@ -112,14 +182,23 @@ export const chapterService = {
     const response = await mangadexClient.get<ChapterListResponse>('/chapter', {
       params: {
         translatedLanguage: [...ALLOWED_LANGUAGES],
-        limit,
-        order: {publishAt: 'desc'},
-        includes: ['scanlation_group', 'manga'],
+        // On demande plus pour compenser les chapitres filtrés (externalUrl / pages=0)
+        limit: Math.min(limit * 3, 100),
+        order: {readableAt: 'desc'},
+        includes: ['scanlation_group', 'manga', 'cover_art'],
         contentRating: ['safe', 'suggestive'],
       },
     });
 
-    const chapters = response.data.data.map((raw: MangaDexChapterRaw) =>
+    // Filtrer les chapitres sans pages (externalUrl) et les dates futures aberrantes
+    const now = Date.now();
+    const readable = response.data.data.filter(
+      raw =>
+        !raw.attributes.externalUrl &&
+        raw.attributes.pages > 0 &&
+        new Date(raw.attributes.readableAt).getTime() <= now,
+    );
+    const chapters = readable.slice(0, limit).map((raw: MangaDexChapterRaw) =>
       rawToChapter(raw),
     );
     cacheService.set(cacheKey, chapters, CACHE_TTL.newChapters);

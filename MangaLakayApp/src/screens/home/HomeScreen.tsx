@@ -9,6 +9,8 @@ import {
   RefreshControl,
   TouchableOpacity,
   Pressable,
+  Image,
+  ImageBackground,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -44,9 +46,15 @@ const HeroCard = ({manga, onPress}: {manga: Manga; onPress: () => void}) => {
 
   return (
     <Pressable onPress={onPress} style={styles.heroCard}>
-      <View style={styles.heroBgEmojiWrap}>
-        <Text style={styles.heroBgEmoji}>⚔️</Text>
-      </View>
+      {manga.coverUrl ? (
+        <ImageBackground
+          source={{uri: manga.coverUrl}}
+          style={StyleSheet.absoluteFillObject}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[StyleSheet.absoluteFillObject, styles.heroBgFallback]} />
+      )}
       <View style={styles.heroOverlay} />
       <View style={styles.heroContent}>
         <Text style={styles.heroLabel}>✨ En vedette aujourd'hui</Text>
@@ -103,7 +111,15 @@ const CommunityBanner = ({
           activeOpacity={0.7}>
           <Text style={styles.communityRank}>{index + 1}</Text>
           <View style={styles.communityCover}>
-            <Text style={styles.communityCoverEmoji}>📖</Text>
+            {manga.coverUrl ? (
+              <Image
+                source={{uri: manga.coverUrl}}
+                style={styles.communityCoverImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={styles.communityCoverEmoji}>📖</Text>
+            )}
           </View>
           <View style={styles.communityInfo}>
             <Text style={styles.communityMangaTitle} numberOfLines={1}>
@@ -146,35 +162,44 @@ const LockedSection = ({
 
 // ─── Chapter Item ─────────────────────────────────────────────────────────────
 const ChapterItem = ({
-  mangaTitle,
   chapter,
   isNew,
   onPress,
 }: {
-  mangaTitle: string;
   chapter: Chapter;
   isNew: boolean;
   onPress: () => void;
-}) => (
-  <TouchableOpacity style={styles.chapterItem} onPress={onPress} activeOpacity={0.7}>
-    <View style={styles.ciCover}>
-      <Text style={styles.ciCoverEmoji}>📖</Text>
-    </View>
-    <View style={styles.ciInfo}>
-      <Text style={styles.ciManga} numberOfLines={1}>{mangaTitle}</Text>
-      <Text style={styles.ciChap}>
-        Chapitre {chapter.chapter ?? '?'}
-        {chapter.title ? ` — ${chapter.title}` : ''}
-      </Text>
-      <Text style={styles.ciDate}>{formatRelativeDate(chapter.publishAt)}</Text>
-    </View>
-    {isNew && (
-      <View style={styles.ciNewBadge}>
-        <Text style={styles.ciNewText}>NEW</Text>
+}) => {
+  const mangaTitle = chapter.mangaTitle ?? '—';
+  return (
+    <TouchableOpacity style={styles.chapterItem} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.ciCover}>
+        {chapter.mangaCoverUrl ? (
+          <Image
+            source={{uri: chapter.mangaCoverUrl}}
+            style={styles.ciCoverImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text style={styles.ciCoverEmoji}>📖</Text>
+        )}
       </View>
-    )}
-  </TouchableOpacity>
-);
+      <View style={styles.ciInfo}>
+        <Text style={styles.ciManga} numberOfLines={1}>{mangaTitle}</Text>
+        <Text style={styles.ciChap}>
+          Chapitre {chapter.chapter ?? '?'}
+          {chapter.title ? ` — ${chapter.title}` : ''}
+        </Text>
+        <Text style={styles.ciDate}>{formatRelativeDate(chapter.readableAt)}</Text>
+      </View>
+      {isNew && (
+        <View style={styles.ciNewBadge}>
+          <Text style={styles.ciNewText}>NEW</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 const HomeScreen = () => {
@@ -184,7 +209,8 @@ const HomeScreen = () => {
 
   const [trending, setTrending] = useState<Manga[]>([]);
   const [featuredManga, setFeaturedManga] = useState<Manga | null>(null);
-  const [newChapters, setNewChapters] = useState<{chapter: Chapter; manga: Manga}[]>([]);
+  const [newChapters, setNewChapters] = useState<Chapter[]>([]);
+  const [showFollowPrompt, setShowFollowPrompt] = useState(false);
   const [communityData, setCommunityData] = useState<{manga: Manga; count: number}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -195,10 +221,12 @@ const HomeScreen = () => {
   const navigateToAuth = () => (navigation as any).navigate('Auth');
 
   const navigateToExplore = () =>
-    (navigation as any).getParent()?.navigate('Explore');
+    (navigation as any).getParent()?.navigate('ExploreStack');
 
   const navigateToRanking = () =>
     (navigation as any).getParent()?.navigate('Ranking');
+
+  const followedIds = entries.map(e => e.mangaId);
 
   const loadData = useCallback(
     async (isRefresh = false) => {
@@ -208,36 +236,36 @@ const HomeScreen = () => {
         setIsLoading(true);
       }
 
-      try {
-        const mangas = await mangaService.getTrending(20);
-        setTrending(mangas);
+      // Réinitialiser le prompt à chaque chargement
+      setShowFollowPrompt(false);
 
+      try {
+        // Chapitres récents : logique conditionnelle selon US-006
+        let chaptersPromise: Promise<Chapter[]>;
+        if (user && followedIds.length > 0) {
+          // Connecté + mangas suivis → chapitres des 7 derniers jours filtrés
+          chaptersPromise = chapterService.getRecentChaptersForMangas(followedIds);
+        } else {
+          // Non connecté ou aucun suivi → chapitres globaux récents
+          chaptersPromise = chapterService.getNewChapters(15);
+        }
+
+        const [mangas, chapters] = await Promise.all([
+          mangaService.getTrending(20),
+          chaptersPromise,
+        ]);
+
+        setTrending(mangas);
         if (mangas.length > 0) {
           setFeaturedManga(mangas[0]);
         }
 
-        // Nouvelles sorties — chapitres récents des mangas en bibliothèque
-        if (user && entries.length > 0) {
-          const libraryIds = entries.map(e => e.mangaId);
-          const libraryMangas = mangas.filter(m => libraryIds.includes(m.id)).slice(0, 5);
-          const chaptersData: {chapter: Chapter; manga: Manga}[] = [];
-          for (const manga of libraryMangas) {
-            try {
-              const feed = await chapterService.getChapterFeed(manga.id, 0, 20);
-              if (feed.chapters.length > 0) {
-                chaptersData.push({chapter: feed.chapters[0], manga});
-              }
-            } catch {
-              // ignorer les erreurs individuelles
-            }
-          }
-          setNewChapters(
-            chaptersData.sort(
-              (a, b) =>
-                new Date(b.chapter.publishAt).getTime() -
-                new Date(a.chapter.publishAt).getTime(),
-            ),
-          );
+        if (user && followedIds.length === 0) {
+          // Connecté mais aucun manga suivi → message d'encouragement
+          setShowFollowPrompt(true);
+          setNewChapters([]);
+        } else {
+          setNewChapters(chapters);
         }
 
         // Communauté — simulé avec les tendances (la vraie implémentation = Cloud Function)
@@ -251,6 +279,7 @@ const HomeScreen = () => {
         setIsRefreshing(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [user, entries],
   );
 
@@ -258,8 +287,8 @@ const HomeScreen = () => {
     loadData();
   }, [loadData]);
 
-  const isNewChapter = (publishAt: string) =>
-    (Date.now() - new Date(publishAt).getTime()) / 36e5 < 24;
+  const isNewChapter = (readableAt: string) =>
+    (Date.now() - new Date(readableAt).getTime()) / 36e5 < 24;
 
   return (
     <ScreenWrapper edges={['top']}>
@@ -291,15 +320,23 @@ const HomeScreen = () => {
                   : 'Kisa ou ap li jodi a ?'}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => (navigation as any).getParent()?.navigate('Profile')}
-              activeOpacity={0.8}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {(user.displayName ?? user.username).slice(0, 2).toUpperCase()}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              {/* Cloche notification */}
+              <TouchableOpacity style={styles.notifBtn} activeOpacity={0.8}>
+                <Text style={styles.notifIcon}>🔔</Text>
+                <View style={styles.notifDot} />
+              </TouchableOpacity>
+              {/* Avatar */}
+              <TouchableOpacity
+                onPress={() => (navigation as any).getParent()?.navigate('ProfileStack')}
+                activeOpacity={0.8}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {(user.displayName ?? user.username).slice(0, 2).toUpperCase()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <View style={styles.guestHeader}>
@@ -398,26 +435,34 @@ const HomeScreen = () => {
         <View style={styles.section}>
           <SectionHeader title="🔔 Nouvelles sorties" />
           {user ? (
-            newChapters.length > 0 ? (
-              newChapters.map(({chapter, manga}) => (
+            showFollowPrompt ? (
+              <View style={styles.followPrompt}>
+                <Text style={styles.followPromptEmoji}>📚</Text>
+                <Text style={styles.followPromptText}>
+                  Suis des mangas pour voir tes nouvelles sorties ici
+                </Text>
+              </View>
+            ) : newChapters.length > 0 ? (
+              newChapters.map(chapter => (
                 <ChapterItem
                   key={chapter.id}
-                  mangaTitle={getTitle(manga.title)}
                   chapter={chapter}
-                  isNew={isNewChapter(chapter.publishAt)}
+                  isNew={isNewChapter(chapter.readableAt)}
                   onPress={() =>
-                    navigation.navigate('Reader', {
-                      chapterId: chapter.id,
-                      mangaId: manga.id,
-                      chapterNum: chapter.chapter ?? '1',
-                    })
+                    chapter.mangaId
+                      ? navigation.navigate('Reader', {
+                          chapterId: chapter.id,
+                          mangaId: chapter.mangaId,
+                          chapterNum: chapter.chapter ?? '1',
+                        })
+                      : undefined
                   }
                 />
               ))
             ) : (
               <View style={styles.emptyChapters}>
                 <Text style={styles.emptyChaptersText}>
-                  Suis des mangas pour voir tes nouvelles sorties
+                  Aucune nouvelle sortie ces 7 derniers jours
                 </Text>
               </View>
             )
@@ -453,6 +498,30 @@ const styles = StyleSheet.create({
   helloText: {fontSize: 22, fontWeight: '900', color: colors.text100},
   helloName: {color: colors.orange},
   helloSub: {fontSize: 13, color: colors.text60, marginTop: 2},
+  headerActions: {flexDirection: 'row', alignItems: 'center', gap: spacing.s2},
+  notifBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  notifIcon: {fontSize: 18},
+  notifDot: {
+    position: 'absolute',
+    top: 8,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.orange,
+    borderWidth: 2,
+    borderColor: colors.bgBase,
+  },
   avatar: {
     width: 40,
     height: 40,
@@ -510,12 +579,13 @@ const styles = StyleSheet.create({
     height: 180,
     backgroundColor: '#1a0533',
   },
-  heroBgEmojiWrap: {position: 'absolute', right: -10, top: -10},
-  heroBgEmoji: {fontSize: 120, opacity: 0.25},
+  heroBgFallback: {
+    backgroundColor: '#1a0533',
+  },
   heroOverlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(10,14,26,0.7)',
+    backgroundColor: 'rgba(10,14,26,0.65)',
   },
   heroContent: {
     position: 'absolute',
@@ -538,7 +608,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.s1,
     marginBottom: spacing.s2,
   },
-  heroMeta: {fontSize: 12, color: colors.text60},
+  heroMeta: {fontSize: 12, color: 'rgba(249,250,251,0.75)'},
   heroCta: {
     alignSelf: 'flex-start',
     backgroundColor: colors.orange,
@@ -587,7 +657,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgElevated,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  communityCoverImage: {width: '100%', height: '100%'},
   communityCoverEmoji: {fontSize: 18},
   communityInfo: {flex: 1, minWidth: 0},
   communityMangaTitle: {fontSize: 13, fontWeight: '600', color: colors.text100},
@@ -644,7 +716,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    overflow: 'hidden',
   },
+  ciCoverImage: {width: '100%', height: '100%'},
   ciCoverEmoji: {fontSize: 22},
   ciInfo: {flex: 1, minWidth: 0},
   ciManga: {fontSize: 13, fontWeight: '600', color: colors.text100},
@@ -662,6 +736,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.s5,
   },
   emptyChaptersText: {fontSize: 14, color: colors.text60, textAlign: 'center'},
+  // Message d'encouragement (connecté, 0 follows)
+  followPrompt: {
+    paddingHorizontal: spacing.s4,
+    paddingVertical: spacing.s6,
+    alignItems: 'center',
+  },
+  followPromptEmoji: {fontSize: 36, marginBottom: spacing.s3},
+  followPromptText: {
+    fontSize: 14,
+    color: colors.text60,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 });
 
 export default HomeScreen;
