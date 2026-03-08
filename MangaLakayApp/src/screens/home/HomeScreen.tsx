@@ -17,6 +17,7 @@ import {StackNavigationProp} from '@react-navigation/stack';
 import {Manga, Chapter} from '../../types/mangadex.types';
 import {mangaService} from '../../services/mangadex/manga.service';
 import {chapterService} from '../../services/mangadex/chapter.service';
+import {communityService} from '../../services/firebase/community.service';
 import {useAuthStore} from '../../stores/auth.store';
 import {useLibraryStore} from '../../stores/library.store';
 import {MangaCardVertical} from '../../components/manga';
@@ -250,9 +251,10 @@ const HomeScreen = () => {
           chaptersPromise = chapterService.getNewChapters(15);
         }
 
-        const [mangas, chapters] = await Promise.all([
+        const [mangas, chapters, community] = await Promise.all([
           mangaService.getTrending(20),
           chaptersPromise,
+          communityService.getReadingNow(),
         ]);
 
         setTrending(mangas);
@@ -268,10 +270,22 @@ const HomeScreen = () => {
           setNewChapters(chapters);
         }
 
-        // Communauté — simulé avec les tendances (la vraie implémentation = Cloud Function)
-        setCommunityData(
-          mangas.slice(0, 4).map((m, i) => ({manga: m, count: 34 - i * 7})),
-        );
+        // Communauté — BR-020 : visible uniquement si >= 10 users actifs
+        if (community && community.activeUsersCount >= 10 && community.topManga.length > 0) {
+          const topMangaSlice = community.topManga.slice(0, 5);
+          const topMangaIds = topMangaSlice.map(m => m.mangaId);
+          const enriched = await mangaService.getMangaByIds(topMangaIds);
+          // Reconstruire avec readersCount depuis community_stats
+          const communityItems = enriched
+            .map(manga => {
+              const entry = topMangaSlice.find(m => m.mangaId === manga.id);
+              return entry ? {manga, count: entry.readersCount} : null;
+            })
+            .filter((item): item is {manga: Manga; count: number} => item !== null);
+          setCommunityData(communityItems);
+        } else {
+          setCommunityData([]);
+        }
       } catch {
         // erreur silencieuse
       } finally {
@@ -413,23 +427,26 @@ const HomeScreen = () => {
         </View>
 
         {/* ── La kominote ap li ───────────────────────────────────────────── */}
-        <View style={styles.sectionPadded}>
-          {user ? (
-            <CommunityBanner
-              mangas={communityData}
-              onViewRanking={navigateToRanking}
-              onMangaPress={navigateToManga}
-            />
-          ) : (
-            <LockedSection
-              icon="🔒"
-              title="La kominote ap li"
-              subtitle="Crée un compte pour voir ce que les otakus haïtiens lisent en ce moment"
-              ctaLabel="Rejoindre gratuitement"
-              onCta={navigateToAuth}
-            />
-          )}
-        </View>
+        {/* BR-020 : visible si >= 10 users actifs (géré via communityData) */}
+        {(user && communityData.length > 0) || !user ? (
+          <View style={styles.sectionPadded}>
+            {user ? (
+              <CommunityBanner
+                mangas={communityData}
+                onViewRanking={navigateToRanking}
+                onMangaPress={navigateToManga}
+              />
+            ) : (
+              <LockedSection
+                icon="🔒"
+                title="La kominote ap li"
+                subtitle="Crée un compte pour voir ce que les otakus haïtiens lisent en ce moment"
+                ctaLabel="Rejoindre gratuitement"
+                onCta={navigateToAuth}
+              />
+            )}
+          </View>
+        ) : null}
 
         {/* ── Nouvelles sorties ────────────────────────────────────────────── */}
         <View style={styles.section}>
