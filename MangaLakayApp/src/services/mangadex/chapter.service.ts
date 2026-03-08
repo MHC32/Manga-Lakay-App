@@ -70,7 +70,8 @@ export const chapterService = {
 
   /**
    * Récupère les URLs des pages d'un chapitre via at-home/server.
-   * BR-003: retry auto sur autres serveurs (max 3 tentatives géré par rate limiter).
+   * BR-003: retry automatique max 3 tentatives.
+   * BR-010: backoff exponentiel 1s → 2s → 4s entre les tentatives.
    * Cache TTL 1h.
    */
   async getChapterPages(chapterId: string): Promise<ChapterPages | null> {
@@ -80,19 +81,35 @@ export const chapterService = {
       return cached;
     }
 
+    const attemptLoad = async (attempt: number): Promise<ChapterPages> => {
+      try {
+        const response = await mangadexClient.get<AtHomeServerResponse>(
+          `/at-home/server/${chapterId}`,
+        );
+
+        const pages: ChapterPages = {
+          chapterId,
+          baseUrl: response.data.baseUrl,
+          hash: response.data.chapter.hash,
+          data: response.data.chapter.data,
+          dataSaver: response.data.chapter.dataSaver,
+        };
+
+        return pages;
+      } catch (error) {
+        if (attempt < 3) {
+          const delay = Math.pow(2, attempt) * 1000; // 1000ms, 2000ms, 4000ms
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return attemptLoad(attempt + 1);
+        }
+        throw new Error(
+          `Impossible de charger le chapitre après ${attempt + 1} tentatives`,
+        );
+      }
+    };
+
     try {
-      const response = await mangadexClient.get<AtHomeServerResponse>(
-        `/at-home/server/${chapterId}`,
-      );
-
-      const pages: ChapterPages = {
-        chapterId,
-        baseUrl: response.data.baseUrl,
-        hash: response.data.chapter.hash,
-        data: response.data.chapter.data,
-        dataSaver: response.data.chapter.dataSaver,
-      };
-
+      const pages = await attemptLoad(0);
       cacheService.set(cacheKey, pages, CACHE_TTL.chapterPages);
       return pages;
     } catch {
