@@ -628,10 +628,16 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
                       {isRead ? (
                         <Text style={styles.chCheck}>✓</Text>
                       ) : (
-                        <View style={styles.chLangBadge}>
-                          <Text style={styles.chLangText}>
-                            {LANG_FLAGS[ch.translatedLanguage] ?? ch.translatedLanguage.toUpperCase()}
-                          </Text>
+                        <View style={styles.chRightContent}>
+                          <View style={[
+                            styles.chLangBadge,
+                            ch.translatedLanguage === 'fr' ? styles.chLangBadgeFR : styles.chLangBadgeEN,
+                          ]}>
+                            <Text style={styles.chLangBadgeText}>
+                              {ch.translatedLanguage === 'fr' ? '🇫🇷 FR' : '🇬🇧 EN'}
+                            </Text>
+                          </View>
+                          <Text style={styles.chPages}>{ch.pageCount}p</Text>
                         </View>
                       )}
                     </View>
@@ -1192,13 +1198,31 @@ const styles = StyleSheet.create({
   chMeta: {fontSize: 11, color: colors.text60, marginTop: 2},
   chRight: {alignItems: 'center'},
   chCheck: {fontSize: 14, color: colors.success},
+  chRightContent: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
   chLangBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.sm,
+    borderRadius: 4,
   },
-  chLangText: {fontSize: 10, color: colors.text60},
+  chLangBadgeFR: {
+    backgroundColor: 'rgba(0,212,170,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.3)',
+  },
+  chLangBadgeEN: {
+    backgroundColor: 'rgba(255,209,102,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,209,102,0.3)',
+  },
+  chLangBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.text60,
+  },
+  chPages: {fontSize: 10, color: colors.text60},
 
   // Similaires
   similairesIntro: {
