@@ -11,9 +11,9 @@ export const CACHE_TTL = {
   chapterPages: 1,
   stats: 2,
   covers: 24,
-  search: 0.5,
+  search: 2,
   trending: 2,
-  newChapters: 0.5,
+  newChapters: 1,
   ranking: 24,
 } as const;
 
