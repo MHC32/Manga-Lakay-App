@@ -108,6 +108,7 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('info');
   const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('asc');
+  const [langFilter, setLangFilter] = useState<'fr' | 'en'>('fr');
   const [descExpanded, setDescExpanded] = useState(false);
   const [userRating, setUserRating] = useState<number | null>(null);
   const [ratingLoading, setRatingLoading] = useState(false);
@@ -258,6 +259,11 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
 
   const frChapters = chapters.filter(ch => ch.translatedLanguage === 'fr');
   const isEnglishOnly = chapters.length > 0 && frChapters.length === 0;
+
+  // Chapitres filtrés par langue sélectionnée dans la toolbar
+  const displayedChapters = sortedChapters.filter(
+    ch => ch.externalUrl || ch.translatedLanguage === langFilter,
+  );
 
   const readChapterIds = new Set(libraryEntry?.chaptersRead ?? []);
 
@@ -568,12 +574,22 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
             {/* Toolbar langue + ordre */}
             <View style={styles.chapToolbar}>
               <View style={styles.chapLangChips}>
-                <View style={[styles.chipLang, styles.chipLangActive]}>
-                  <Text style={styles.chipLangActiveText}>🇫🇷 FR</Text>
-                </View>
-                <View style={styles.chipLang}>
-                  <Text style={styles.chipLangText}>🇬🇧 EN</Text>
-                </View>
+                <TouchableOpacity
+                  style={[styles.chipLang, langFilter === 'fr' && styles.chipLangActive]}
+                  onPress={() => setLangFilter('fr')}
+                  activeOpacity={0.75}>
+                  <Text style={langFilter === 'fr' ? styles.chipLangActiveText : styles.chipLangText}>
+                    🇫🇷 FR
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chipLang, langFilter === 'en' && styles.chipLangActive]}
+                  onPress={() => setLangFilter('en')}
+                  activeOpacity={0.75}>
+                  <Text style={langFilter === 'en' ? styles.chipLangActiveText : styles.chipLangText}>
+                    🇬🇧 EN
+                  </Text>
+                </TouchableOpacity>
               </View>
               <TouchableOpacity
                 onPress={() => setChapterOrder(o => (o === 'asc' ? 'desc' : 'asc'))}
@@ -584,19 +600,16 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
               </TouchableOpacity>
             </View>
 
-            {isEnglishOnly && (
-              <View style={styles.englishOnlyBanner}>
-                <Text style={styles.englishOnlyFlag}>🇬🇧</Text>
-                <View style={styles.englishOnlyInfo}>
-                  <Text style={styles.englishOnlyTitle}>Disponible en anglais uniquement</Text>
-                  <Text style={styles.englishOnlyDesc}>
-                    Ce manga n'a pas encore de traduction française sur MangaDex.
-                  </Text>
-                </View>
+            {langFilter === 'fr' && frChapters.length === 0 && chapters.length > 0 ? (
+              <View style={styles.noLangBox}>
+                <Text style={styles.noLangIcon}>🇫🇷</Text>
+                <Text style={styles.noLangTitle}>Pas de traduction française</Text>
+                <Text style={styles.noLangDesc}>
+                  Ce manga n'a pas de chapitres en français sur MangaDex.{'\n'}
+                  Clique sur 🇬🇧 EN pour lire les chapitres en anglais.
+                </Text>
               </View>
-            )}
-
-            {sortedChapters.length === 0 ? (
+            ) : displayedChapters.length === 0 ? (
               <View style={styles.noChaptersBox}>
                 <Text style={styles.noChaptersIcon}>📖</Text>
                 <Text style={styles.noChaptersTitle}>
@@ -611,7 +624,7 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
                 </Text>
               </View>
             ) : (
-              sortedChapters.map(ch => {
+              displayedChapters.map(ch => {
                 const isRead = readChapterIds.has(ch.id);
                 return (
                   <TouchableOpacity
@@ -1357,6 +1370,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   btnLibraryActiveText: {color: colors.success},
+
+  // Pas de traduction dans la langue sélectionnée
+  noLangBox: {
+    alignItems: 'center',
+    paddingVertical: spacing.s7,
+    paddingHorizontal: spacing.s5,
+    gap: spacing.s3,
+  },
+  noLangIcon: {fontSize: 48},
+  noLangTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text100,
+    textAlign: 'center',
+  },
+  noLangDesc: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.text60,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 
   // Chapitres indisponibles
   noChaptersBox: {
