@@ -64,12 +64,30 @@ export const libraryService = {
   },
 
   async markChapterRead(uid: string, mangaId: string, chapterId: string): Promise<void> {
-    await updateDoc(doc(db, 'users', uid, 'library', mangaId), {
-      chaptersRead: arrayUnion(chapterId),
-      lastChapterRead: chapterId,
-      lastReadAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
+    const ref = doc(db, 'users', uid, 'library', mangaId);
+    const now = Timestamp.now();
+    // Si le manga n'est pas encore en bibliothèque, on l'ajoute automatiquement en "reading"
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      const entry: LibraryEntry = {
+        mangaId,
+        status: 'reading',
+        userRating: null,
+        chaptersRead: [chapterId],
+        lastChapterRead: chapterId,
+        lastReadAt: now,
+        addedAt: now,
+        updatedAt: now,
+      };
+      await setDoc(ref, entry);
+    } else {
+      await updateDoc(ref, {
+        chaptersRead: arrayUnion(chapterId),
+        lastChapterRead: chapterId,
+        lastReadAt: now,
+        updatedAt: now,
+      });
+    }
   },
 
   async unmarkChapterRead(uid: string, mangaId: string, chapterId: string): Promise<void> {
@@ -77,6 +95,15 @@ export const libraryService = {
       chaptersRead: arrayRemove(chapterId),
       updatedAt: Timestamp.now(),
     });
+  },
+
+  async getReadChapters(uid: string, mangaId: string): Promise<string[]> {
+    const snap = await getDoc(doc(db, 'users', uid, 'library', mangaId));
+    if (!snap.exists()) {
+      return [];
+    }
+    const entry = snap.data() as LibraryEntry;
+    return entry.chaptersRead ?? [];
   },
 
   subscribeToLibrary(uid: string, callback: (entries: LibraryEntry[]) => void): Unsubscribe {
