@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
   Share,
+  Linking,
 } from 'react-native';
 import {StackScreenProps} from '@react-navigation/stack';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -207,14 +208,20 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
         ? parseFloat(a.chapter ?? '0') - parseFloat(b.chapter ?? '0')
         : parseFloat(b.chapter ?? '0') - parseFloat(a.chapter ?? '0'),
     );
-    const first = sortedChapters[0];
-    if (!first) {
+    // Chercher le premier chapitre lisible en interne (pas externalUrl)
+    const firstInternal = sortedChapters.find(ch => !ch.externalUrl);
+    if (!firstInternal) {
+      // Tous les chapitres sont externes — ouvrir le premier sur la plateforme externe
+      const firstExternal = sortedChapters[0];
+      if (firstExternal?.externalUrl) {
+        Linking.openURL(firstExternal.externalUrl);
+      }
       return;
     }
     navigation.navigate('Reader', {
-      chapterId: first.id,
+      chapterId: firstInternal.id,
       mangaId,
-      chapterNum: first.chapter ?? '1',
+      chapterNum: firstInternal.chapter ?? '1',
     });
   };
 
@@ -615,13 +622,17 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
                   <TouchableOpacity
                     key={ch.id}
                     style={[styles.chapterRow, isRead && styles.chapterRowRead]}
-                    onPress={() =>
-                      navigation.navigate('Reader', {
-                        chapterId: ch.id,
-                        mangaId,
-                        chapterNum: ch.chapter ?? '?',
-                      })
-                    }
+                    onPress={() => {
+                      if (ch.externalUrl) {
+                        Linking.openURL(ch.externalUrl);
+                      } else {
+                        navigation.navigate('Reader', {
+                          chapterId: ch.id,
+                          mangaId,
+                          chapterNum: ch.chapter ?? '?',
+                        });
+                      }
+                    }}
                     activeOpacity={0.7}>
                     <View style={styles.chLeft}>
                       <Text style={[styles.chNum, isRead && styles.chRead]}>
@@ -644,15 +655,25 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
                         <Text style={styles.chCheck}>✓</Text>
                       ) : (
                         <View style={styles.chRightContent}>
-                          <View style={[
-                            styles.chLangBadge,
-                            ch.translatedLanguage === 'fr' ? styles.chLangBadgeFR : styles.chLangBadgeEN,
-                          ]}>
-                            <Text style={styles.chLangBadgeText}>
-                              {(LANG_FLAGS[ch.translatedLanguage] ?? '🌐') + ' ' + ch.translatedLanguage.toUpperCase()}
-                            </Text>
-                          </View>
-                          <Text style={styles.chPages}>{ch.pageCount}p</Text>
+                          {ch.externalUrl ? (
+                            // Chapitre externe — badge à la place du badge langue
+                            <View style={styles.chExternalBadge}>
+                              <Text style={styles.chExternalBadgeText}>🔗 Manga Plus</Text>
+                            </View>
+                          ) : (
+                            // Chapitre interne — badge langue normal
+                            <>
+                              <View style={[
+                                styles.chLangBadge,
+                                ch.translatedLanguage === 'fr' ? styles.chLangBadgeFR : styles.chLangBadgeEN,
+                              ]}>
+                                <Text style={styles.chLangBadgeText}>
+                                  {(LANG_FLAGS[ch.translatedLanguage] ?? '🌐') + ' ' + ch.translatedLanguage.toUpperCase()}
+                                </Text>
+                              </View>
+                              <Text style={styles.chPages}>{ch.pageCount}p</Text>
+                            </>
+                          )}
                         </View>
                       )}
                     </View>
@@ -1236,6 +1257,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: colors.text60,
+  },
+  chExternalBadge: {
+    backgroundColor: 'rgba(255,107,53,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,53,0.3)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  chExternalBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.orange,
   },
   chPages: {fontSize: 10, color: colors.text60},
 
