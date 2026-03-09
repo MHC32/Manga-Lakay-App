@@ -4,13 +4,15 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   deleteDoc,
   Timestamp,
 } from '@react-native-firebase/firestore';
-import {CommunityRating, RankingDocument, RankingItem} from '../../types/firebase.types';
+import {CommunityRating, RankingItem} from '../../types/firebase.types';
 import {MIN_VOTES_FOR_SCORE} from '../../constants/config';
+import {cacheService} from '../cache/cache.service';
 
 const db = getFirestore();
 
@@ -59,11 +61,45 @@ export const ratingService = {
   },
 
   async getRanking(period: 'weekly' | 'monthly' | 'alltime'): Promise<RankingItem[]> {
-    const snap = await getDoc(doc(db, 'rankings', period));
-    if (!snap.exists()) {
-      return [];
+    // Cache MMKV 24h (même classement pour toutes les périodes en beta)
+    const cacheKey = `ranking:${period}`;
+    const cached = cacheService.get<RankingItem[]>(cacheKey);
+    if (cached) {
+      return cached;
     }
-    const data = snap.data() as RankingDocument;
-    return data.items ?? [];
+
+    // Lire tous les documents agrégats depuis ratings/
+    const snapshot = await getDocs(collection(db, 'ratings'));
+
+    type RatingDoc = CommunityRating & {id: string};
+    const allDocs: RatingDoc[] = snapshot.docs.map((d: any) => ({
+      id: d.id as string,
+      ...(d.data() as CommunityRating),
+    }));
+
+    const items: Array<Omit<RankingItem, 'rank'>> = allDocs
+      // Minimum 5 votes (BR-008)
+      .filter((data: RatingDoc) => data.totalVotes >= MIN_VOTES_FOR_SCORE && data.averageRating > 0)
+      .map((data: RatingDoc) => ({
+        mangaId: data.id,
+        averageRating: data.averageRating,
+        totalVotes: data.totalVotes,
+      }));
+
+    // Trier par note desc, ex-aequo par totalVotes desc (BR-009)
+    items.sort((a, b) =>
+      b.averageRating !== a.averageRating
+        ? b.averageRating - a.averageRating
+        : b.totalVotes - a.totalVotes,
+    );
+
+    // Top 50 avec rang
+    const result: RankingItem[] = items.slice(0, 50).map((item, index) => ({
+      ...item,
+      rank: index + 1,
+    }));
+
+    cacheService.set(cacheKey, result, 24); // Cache 24h
+    return result;
   },
 };
