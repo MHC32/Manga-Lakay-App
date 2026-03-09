@@ -15,6 +15,12 @@ import {
   PAGINATION,
 } from '../../constants/api';
 
+/** Sérialise un objet en JSON avec les clés triées pour garantir la stabilité des clés de cache. */
+function stableStringify(obj: Record<string, unknown>): string {
+  const sortedKeys = Object.keys(obj).sort();
+  return JSON.stringify(obj, sortedKeys);
+}
+
 // Paramètres par défaut conformes BR-001 (filtrage contenu adulte)
 const DEFAULT_PARAMS = {
   contentRating: [...ALLOWED_CONTENT_RATINGS],
@@ -31,7 +37,7 @@ export const mangaService = {
     params: MangaListParams = {},
     useCache = true,
   ): Promise<{mangas: Manga[]; total: number}> {
-    const cacheKey = CacheKeys.search(JSON.stringify(params));
+    const cacheKey = CacheKeys.search(stableStringify(params as Record<string, unknown>));
 
     if (useCache) {
       const cached = cacheService.get<{mangas: Manga[]; total: number}>(cacheKey);
