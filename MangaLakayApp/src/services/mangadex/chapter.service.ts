@@ -55,9 +55,9 @@ export const chapterService = {
       },
     );
 
-    // Filtrer les chapitres non lisibles dans l'app (URL externe ou aucune page)
+    // Garder les chapitres lisibles (pages > 0) OU avec lien externe Manga Plus
     const readable = response.data.data.filter(
-      raw => !raw.attributes.externalUrl && raw.attributes.pages > 0,
+      raw => raw.attributes.externalUrl !== null || raw.attributes.pages > 0,
     );
     const result = {
       chapters: readable.map(rawToChapter),
