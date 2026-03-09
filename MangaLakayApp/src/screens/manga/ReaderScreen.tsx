@@ -24,6 +24,7 @@ import {libraryService} from '../../services/firebase/library.service';
 import {getPageUrl, getPageUrlDataSaver} from '../../utils/image';
 import {colors, spacing, radius, fonts} from '../../constants/theme';
 import {SharedDetailParams} from '../../types/navigation.types';
+import {mmkv} from '../../services/cache/mmkv';
 
 type Props = StackScreenProps<SharedDetailParams, 'Reader'>;
 
@@ -69,11 +70,16 @@ const ProgressSlider = ({
 // ─── Écran ────────────────────────────────────────────────────────────────────
 
 const ReaderScreen = ({route, navigation}: Props) => {
-  const {chapterId, mangaId, chapterNum} = route.params;
+  const {chapterId, mangaId, chapterNum, originalLanguage} = route.params;
   const {user} = useAuthStore();
   const {markChapterRead, getEntry, updateStatus} = useLibraryStore();
-  const {settings, showControls, setShowControls, openChapter} = useReaderStore();
+  const {settings, showControls, setShowControls, openChapter, updateSettings} = useReaderStore();
   const insets = useSafeAreaInsets();
+
+  const WEBTOON_LANGUAGES = ['ko', 'zh', 'zh-hk'];
+  const isWebtoon =
+    WEBTOON_LANGUAGES.includes(originalLanguage ?? '') ||
+    settings.direction === 'webtoon';
 
   const [pages, setPages] = useState<ChapterPages | null>(null);
   const [allChapters, setAllChapters] = useState<Chapter[]>([]);
@@ -81,6 +87,7 @@ const ReaderScreen = ({route, navigation}: Props) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showEnd, setShowEnd] = useState(false);
   const [showCompletedModal, setShowCompletedModal] = useState(false);
+  const [webtoonToast, setWebtoonToast] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const controlsOpacity = useRef(new Animated.Value(0)).current;
@@ -143,6 +150,19 @@ const ReaderScreen = ({route, navigation}: Props) => {
       useNativeDriver: true,
     }).start();
   }, [showControls, controlsOpacity]);
+
+  // ─── Toast webtoon (une seule fois) ──────────────────────────────────────
+
+  useEffect(() => {
+    if (!isWebtoon) {return;}
+    const alreadyShown = mmkv.getString('user:webtoonToastShown');
+    if (!alreadyShown) {
+      setWebtoonToast(true);
+      mmkv.setString('user:webtoonToastShown', '1');
+      const t = setTimeout(() => setWebtoonToast(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [isWebtoon]);
 
   const toggleControls = useCallback(() => {
     if (!showEnd) {
@@ -229,9 +249,9 @@ const ReaderScreen = ({route, navigation}: Props) => {
         ref={flatListRef}
         data={pageUrls}
         keyExtractor={(_, i) => `page-${i}`}
-        horizontal={settings.direction === 'rtl'}
-        inverted={settings.direction === 'rtl'}
-        pagingEnabled={settings.direction === 'rtl'}
+        horizontal={!isWebtoon && settings.direction === 'rtl'}
+        inverted={!isWebtoon && settings.direction === 'rtl'}
+        pagingEnabled={!isWebtoon}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged.current}
@@ -240,11 +260,11 @@ const ReaderScreen = ({route, navigation}: Props) => {
           <TouchableOpacity
             activeOpacity={1}
             onPress={toggleControls}
-            style={styles.pageContainer}>
+            style={isWebtoon ? styles.webtoonPageContainer : styles.pageContainer}>
             <Image
               source={{uri: item}}
-              style={styles.page}
-              resizeMode="contain"
+              style={isWebtoon ? styles.webtoonPage : styles.page}
+              resizeMode={isWebtoon ? 'cover' : 'contain'}
             />
           </TouchableOpacity>
         )}
@@ -319,6 +339,16 @@ const ReaderScreen = ({route, navigation}: Props) => {
               </TouchableOpacity>
 
               <TouchableOpacity
+                onPress={() =>
+                  updateSettings({direction: isWebtoon ? 'rtl' : 'webtoon'})
+                }
+                style={styles.modeBtn}>
+                <Text style={styles.modeBtnText}>
+                  {isWebtoon ? '📖 Manga' : '📜 Webtoon'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={[styles.chapNavBtn, !nextChapter && styles.chapNavBtnDisabled]}
                 onPress={() => nextChapter && goToChapter(nextChapter)}
                 disabled={!nextChapter}
@@ -358,6 +388,15 @@ const ReaderScreen = ({route, navigation}: Props) => {
               <Text style={styles.endBtnOutlineText}>↩ Retour à la fiche</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+
+      {/* ── Toast Mode Webtoon ────────────────────────────────────────────── */}
+      {webtoonToast && (
+        <View style={styles.webtoonToast} pointerEvents="none">
+          <Text style={styles.webtoonToastText}>
+            📜 Mode Webtoon activé — scroll vers le bas
+          </Text>
         </View>
       )}
 
@@ -421,6 +460,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   page: {width: W, height: H},
+
+  // Pages webtoon (scroll vertical)
+  webtoonPageContainer: {
+    width: W,
+  },
+  webtoonPage: {
+    width: W,
+    height: undefined,
+    aspectRatio: 0.7,
+  },
+
+  // Toast webtoon
+  webtoonToast: {
+    position: 'absolute',
+    bottom: 80,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: spacing.s4,
+    paddingVertical: spacing.s3,
+    borderRadius: radius.full,
+  },
+  webtoonToastText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+  },
 
   // Controls overlay
   controlsOverlay: {
