@@ -227,7 +227,16 @@ const ExploreScreen = () => {
     <ScrollView
       style={styles.screen}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.content}>
+      contentContainerStyle={styles.content}
+      onScroll={({nativeEvent}) => {
+        const {layoutMeasurement, contentOffset, contentSize} = nativeEvent;
+        const isNearBottom =
+          layoutMeasurement.height + contentOffset.y >= contentSize.height - 200;
+        if (isNearBottom && !isLoadingMore && !loadingNew) {
+          loadMoreNew();
+        }
+      }}
+      scrollEventThrottle={400}>
 
       {/* Hero */}
       <View style={styles.hero}>
@@ -350,26 +359,16 @@ const ExploreScreen = () => {
 
       {loadingNew
         ? Array.from({length: 4}).map((_, i) => <MangaRowSkeleton key={i} />)
-        : (
-          <FlatList
-            data={newMangas}
-            keyExtractor={item => item.id}
-            scrollEnabled={false}
-            renderItem={({item}) => (
-              <MangaRowItem
-                manga={item}
-                onPress={() => goToManga(item.id)}
-              />
-            )}
-            onEndReached={loadMoreNew}
-            onEndReachedThreshold={0.2}
-            ListFooterComponent={
-              isLoadingMore
-                ? <ActivityIndicator color={colors.orange} style={{padding: spacing.s4}} />
-                : null
-            }
-          />
-        )}
+        : newMangas.map(item => (
+            <MangaRowItem
+              key={item.id}
+              manga={item}
+              onPress={() => goToManga(item.id)}
+            />
+          ))}
+      {!loadingNew && isLoadingMore && (
+        <ActivityIndicator color={colors.orange} style={{padding: spacing.s4}} />
+      )}
     </ScrollView>
     </ScreenWrapper>
   );
