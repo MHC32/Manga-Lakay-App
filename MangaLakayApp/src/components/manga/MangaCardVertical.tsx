@@ -5,6 +5,16 @@ import {Manga} from '../../types/mangadex.types';
 import {getTitle} from '../../utils/locale';
 import {colors, radius, spacing} from '../../constants/theme';
 
+const ORIGIN_FLAG: Record<string, string> = {
+  ja: '🇯🇵', ko: '🇰🇷', zh: '🇨🇳', 'zh-hk': '🇨🇳', fr: '🇫🇷',
+};
+const ORIGIN_CHIP: Record<string, {label: string; color: string}> = {
+  ko: {label: 'MANHWA', color: colors.teal},
+  zh: {label: 'MANHUA', color: colors.mango},
+  'zh-hk': {label: 'MANHUA', color: colors.mango},
+  fr: {label: 'BD FR', color: colors.orange},
+};
+
 interface MangaCardVerticalProps {
   manga: Manga;
   onPress: () => void;
@@ -37,10 +47,32 @@ const MangaCardVertical = ({manga, onPress, width = 120}: MangaCardVerticalProps
             <Text style={styles.statusText}>En cours</Text>
           </View>
         )}
+        {/* Badge flag origine */}
+        {ORIGIN_FLAG[manga.originalLanguage] && (
+          <View style={styles.originFlag}>
+            <Text style={styles.originFlagText}>
+              {ORIGIN_FLAG[manga.originalLanguage]}
+            </Text>
+          </View>
+        )}
       </View>
       <Text style={styles.title} numberOfLines={2}>
         {title}
       </Text>
+      {/* Chip type */}
+      {ORIGIN_CHIP[manga.originalLanguage] && (
+        <View style={[
+          styles.originChip,
+          {backgroundColor: `${ORIGIN_CHIP[manga.originalLanguage]!.color}22`},
+        ]}>
+          <Text style={[
+            styles.originChipText,
+            {color: ORIGIN_CHIP[manga.originalLanguage]!.color},
+          ]}>
+            {ORIGIN_CHIP[manga.originalLanguage]!.label}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
@@ -89,6 +121,17 @@ const styles = StyleSheet.create({
     marginTop: spacing.s2,
     lineHeight: 16,
   },
+  originFlag: {
+    position: 'absolute', top: 6, right: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1,
+  },
+  originFlagText: { fontSize: 12 },
+  originChip: {
+    alignSelf: 'flex-start', borderRadius: 3,
+    paddingHorizontal: 5, paddingVertical: 2, marginTop: 3,
+  },
+  originChipText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
 });
 
 export default MangaCardVertical;
