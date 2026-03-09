@@ -203,18 +203,13 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
   };
 
   const handleReadFirst = () => {
-    const sortedChapters = [...chapters].sort((a, b) =>
-      chapterOrder === 'asc'
-        ? parseFloat(a.chapter ?? '0') - parseFloat(b.chapter ?? '0')
-        : parseFloat(b.chapter ?? '0') - parseFloat(a.chapter ?? '0'),
-    );
     // Chercher le premier chapitre lisible en interne (pas externalUrl)
     const firstInternal = sortedChapters.find(ch => !ch.externalUrl);
     if (!firstInternal) {
       // Tous les chapitres sont externes — ouvrir le premier sur la plateforme externe
       const firstExternal = sortedChapters[0];
       if (firstExternal?.externalUrl) {
-        Linking.openURL(firstExternal.externalUrl);
+        Linking.openURL(firstExternal.externalUrl).catch(() => {});
       }
       return;
     }
@@ -624,7 +619,7 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
                     style={[styles.chapterRow, isRead && styles.chapterRowRead]}
                     onPress={() => {
                       if (ch.externalUrl) {
-                        Linking.openURL(ch.externalUrl);
+                        Linking.openURL(ch.externalUrl).catch(() => {});
                       } else {
                         navigation.navigate('Reader', {
                           chapterId: ch.id,
