@@ -218,6 +218,7 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
       chapterId: firstInternal.id,
       mangaId,
       chapterNum: firstInternal.chapter ?? '1',
+      originalLanguage: manga?.originalLanguage,
     });
   };
 
@@ -239,7 +240,7 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
       } else {
         await ratingService.updateRating(user.uid, mangaId, rating);
       }
-      setRatingToast(`Note de ${rating}/10 enregistrée !`);
+      setRatingToast(`Note de ${rating}/10 enregistrée ! ⭐`);
       setTimeout(() => setRatingToast(null), 2500);
     } catch {
       setUserRating(userRating); // rollback
@@ -258,7 +259,8 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
   );
 
   const frChapters = chapters.filter(ch => ch.translatedLanguage === 'fr');
-  const isEnglishOnly = chapters.length > 0 && frChapters.length === 0;
+  const enChapters = chapters.filter(ch => ch.translatedLanguage === 'en');
+  const isEnglishOnly = chapters.length > 0 && frChapters.length === 0 && enChapters.length > 0;
 
   // Chapitres filtrés par langue sélectionnée dans la toolbar
   const displayedChapters = sortedChapters.filter(
@@ -600,6 +602,18 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
               </TouchableOpacity>
             </View>
 
+            {isEnglishOnly && (
+              <View style={styles.englishOnlyBanner}>
+                <Text style={styles.englishOnlyFlag}>🇬🇧</Text>
+                <View style={styles.englishOnlyInfo}>
+                  <Text style={styles.englishOnlyTitle}>Disponible en anglais uniquement</Text>
+                  <Text style={styles.englishOnlyDesc}>
+                    Ce manga n'a pas encore de traduction française sur MangaDex.
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {langFilter === 'fr' && frChapters.length === 0 && chapters.length > 0 ? (
               <View style={styles.noLangBox}>
                 <Text style={styles.noLangIcon}>🇫🇷</Text>
@@ -638,6 +652,7 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
                           chapterId: ch.id,
                           mangaId,
                           chapterNum: ch.chapter ?? '?',
+                          originalLanguage: manga?.originalLanguage,
                         });
                       }
                     }}
@@ -862,8 +877,8 @@ const MangaDetailScreen = ({route, navigation}: Props) => {
 
       {/* ── TOAST NOTATION ────────────────────────────────────────────────── */}
       {ratingToast && (
-        <View style={styles.ratingToast}>
-          <Text style={styles.ratingToastText}>⭐ {ratingToast}</Text>
+        <View style={styles.ratingToast} pointerEvents="none">
+          <Text style={styles.ratingToastText}>{ratingToast}</Text>
         </View>
       )}
 
@@ -1510,18 +1525,23 @@ const styles = StyleSheet.create({
   // Toast notation
   ratingToast: {
     position: 'absolute',
-    bottom: 90,
+    bottom: 100,
     alignSelf: 'center',
     backgroundColor: colors.teal,
-    borderRadius: radius.full,
     paddingHorizontal: spacing.s5,
     paddingVertical: spacing.s3,
-    zIndex: 100,
+    borderRadius: radius.full,
+    elevation: 8,
+    shadowColor: colors.teal,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   ratingToastText: {
-    color: '#fff',
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
     fontWeight: '700',
-    fontSize: 14,
+    color: colors.bgBase,
   },
   englishOnlyBanner: {
     flexDirection: 'row',
