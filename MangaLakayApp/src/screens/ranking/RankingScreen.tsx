@@ -150,6 +150,7 @@ const RankingScreen = () => {
       try {
         const ranking = await ratingService.getRanking(period);
         setItems(ranking);
+        setLoading(false); // afficher le classement immédiatement
         if (ranking.length > 0) {
           const ids = ranking.map(r => r.mangaId);
           const mangas = await mangaService.getMangaByIds(ids);
@@ -159,7 +160,6 @@ const RankingScreen = () => {
         }
       } catch {
         setItems([]);
-      } finally {
         setLoading(false);
       }
     };
