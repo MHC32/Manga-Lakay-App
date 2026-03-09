@@ -55,7 +55,7 @@ export const chapterService = {
       },
     );
 
-    // Garder les chapitres lisibles (pages > 0) OU avec lien externe Manga Plus
+    // Garder les chapitres lisibles (pages > 0) OU avec lien externe vers une plateforme partenaire
     const readable = response.data.data.filter(
       raw => raw.attributes.externalUrl !== null || raw.attributes.pages > 0,
     );
