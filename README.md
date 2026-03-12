@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="MangaLakayApp/assets/bootsplash/logo@2x.png" width="120" height="120" alt="MangaLakay Logo" />
+<img src="MangaLakayApp/scripts/logo.svg" width="120" height="120" alt="MangaLakay Logo" />
 
 # MangaLakay 🌺
 
